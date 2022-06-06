@@ -13,6 +13,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
     }],
 
     width: 800,
+    maxHeight: '100%',
     closable: true,
 
     searchContext: 'project',
@@ -388,6 +389,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
         }
 
         this._onGridLoad();
+        this.down('#gridContainer').setHeight(Math.min(Rally.getApp().getHeight() - 125, 400));
         this.center();
 
         if (Rally.BrowserTest) {
