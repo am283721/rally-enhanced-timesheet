@@ -319,7 +319,7 @@ Ext.define('CA.techservices.TimeTable', {
                 if (value < 0) {
                     return '--';
                 }
-                return Ext.String.format("<a target='_blank' href='{0}'>{1}</a>: {2}",
+                return Ext.String.format("<a target='_top' href='{0}'>{1}</a>: {2}",
                     Rally.nav.Manager.getDetailUrl(record.get('WorkProduct')),
                     record.get('WorkProduct').FormattedID,
                     record.get('WorkProduct').Name
@@ -339,7 +339,7 @@ Ext.define('CA.techservices.TimeTable', {
                 if (value < 0) {
                     return '--';
                 }
-                return Ext.String.format("<a target='_blank' href='{0}'>{1}</a>",
+                return Ext.String.format("<a target='_top' href='{0}'>{1}</a>",
                     Rally.nav.Manager.getDetailUrl(record.get('WorkProduct')),
                     record.get('WorkProduct').FormattedID
                 );
@@ -425,7 +425,7 @@ Ext.define('CA.techservices.TimeTable', {
                     if (value < 0) {
                         return '--';
                     }
-                    return Ext.String.format("<a target='_blank' href='{0}'>{1}</a>: {2}",
+                    return Ext.String.format("<a target='_top' href='{0}'>{1}</a>: {2}",
                         Rally.nav.Manager.getDetailUrl(record.get('PortfolioItem')),
                         record.get('PortfolioItem').FormattedID,
                         record.get('PortfolioItem').Name
@@ -445,7 +445,7 @@ Ext.define('CA.techservices.TimeTable', {
                     if (value < 0) {
                         return '--';
                     }
-                    return Ext.String.format("<a target='_blank' href='{0}'>{1}</a>",
+                    return Ext.String.format("<a target='_top' href='{0}'>{1}</a>",
                         Rally.nav.Manager.getDetailUrl(record.get('PortfolioItem')),
                         record.get('PortfolioItem').FormattedID
                     );
@@ -475,7 +475,7 @@ Ext.define('CA.techservices.TimeTable', {
                     if (value < 0) {
                         return '--';
                     }
-                    return Ext.String.format("<a target='_blank' href='{0}'>{1}</a>: {2}",
+                    return Ext.String.format("<a target='_top' href='{0}'>{1}</a>: {2}",
                         Rally.nav.Manager.getDetailUrl(record.get('PortfolioItem')),
                         record.get('PortfolioItem').FormattedID,
                         record.get('PortfolioItem').Name
@@ -495,7 +495,7 @@ Ext.define('CA.techservices.TimeTable', {
                     if (value < 0) {
                         return '--';
                     }
-                    return Ext.String.format("<a target='_blank' href='{0}'>{1}</a>",
+                    return Ext.String.format("<a target='_top' href='{0}'>{1}</a>",
                         Rally.nav.Manager.getDetailUrl(record.get('PortfolioItem')),
                         record.get('PortfolioItem').FormattedID
                     );
@@ -538,7 +538,7 @@ Ext.define('CA.techservices.TimeTable', {
                 if (value < 0) {
                     return '--';
                 }
-                return Ext.String.format("<a target='_blank' href='{0}'>{1}</a>: {2}",
+                return Ext.String.format("<a target='_top' href='{0}'>{1}</a>: {2}",
                     Rally.nav.Manager.getDetailUrl(record.get('Task')),
                     record.get('Task').FormattedID,
                     record.get('Task').Name
@@ -558,7 +558,7 @@ Ext.define('CA.techservices.TimeTable', {
                 if (value < 0) {
                     return '--';
                 }
-                return Ext.String.format("<a target='_blank' href='{0}'>{1}</a>",
+                return Ext.String.format("<a target='_top' href='{0}'>{1}</a>",
                     Rally.nav.Manager.getDetailUrl(record.get('Task')),
                     record.get('Task').FormattedID
                 );

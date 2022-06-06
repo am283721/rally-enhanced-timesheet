@@ -108,8 +108,8 @@ Ext.define("TSTimesheet", {
             container.add({
                 xtype: 'rallybutton',
                 text: '+ my <span class="icon-story"> </span>',
-                toolTipText: "(add my stories)",
-                padding: 2,
+                toolTipText: "Add my stories and stories with my tasks",
+                // padding: 2,
                 disabled: false,
                 listeners: {
                     scope: this,
