@@ -465,8 +465,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
 
             var start = new Date(1999, 1, 1, start_hour, start_minute || 0);
             var end = new Date(1999, 1, 1, end_hour, end_minute || 0);
-
-            var total = Rally.util.DateTime.getDifference(end, start, 'minute') / 60;
+            total = Rally.util.DateTime.getDifference(end, start, 'minute') / 60;
         }
 
         block.down('#block_total').setValue(total);

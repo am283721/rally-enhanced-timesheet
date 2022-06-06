@@ -1,5 +1,21 @@
 {
-    "name": "CATS-Timesheet-1.2",
-    "sdk": "2.1",
-    "className": "TSTimesheet"
+  "name": "Rally Enhanced Timesheet",
+  "sdk": "2.1",
+  "className": "TSTimesheet",
+  "server": "https://rally1.rallydev.com",
+  "javascript": [
+    "src/js/components/ts-arrowed-date-field.js",
+    "src/js/components/ts-chooser-dialog.js",
+    "src/js/components/ts-column-picker-dialog.js",
+    "src/js/components/ts-column-picker-pickerbutton.js",
+    "src/js/components/ts-time-details-dialog.js",
+    "src/js/components/ts-time-row.js",
+    "src/js/components/ts-time-table.js",
+    "src/js/utils/__ts-general-utils.js",
+    "src/js/utils/__ts-info-link.js",
+    "src/js/utils/__ts-time-utils.js",
+    "src/js/app.js"
+  ],
+  "css": ["src/style/arrow-button.css", "src/style/details.css", "src/style/timesheet.css", "src/style/app.css"],
+  "templates": "./templates"
 }

@@ -123,7 +123,7 @@ Ext.define('Rally.technicalservices.InfoLink', {
             xtype: 'container',
             cls: 'build-info',
             padding: 2,
-            html: "This app was created by the Rally Technical Services Team."
+            html: "This app was originally created by the Rally Technical Services Team and enhanced by Andrew McGrath."
         });
 
         if (APP_BUILD_DATE) {

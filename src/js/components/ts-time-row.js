@@ -256,8 +256,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         {
             name: 'Task', type: 'object', defaultValue: null, convert:
                 function (value, record) {
-                    return CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task')
-                        || "";
+                    return CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task') || "";
                 }
         },
         {
@@ -297,8 +296,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         {
             name: 'WorkProduct', type: 'object', defaultValue: null, convert:
                 function (value, record) {
-                    return CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct')
-                        || "";
+                    return CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct') || "";
                 }
         },
         {
@@ -315,7 +313,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
                 function (value, record) {
                     var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
 
-                    if (Ext.isEmpty(item)) { return '' }
+                    if (Ext.isEmpty(item)) { return ''; }
                     return item.FormattedID || '';
                 }
         },
@@ -331,8 +329,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         {
             name: 'WorkProductState', type: 'string', defaultValue: null, convert:
                 function (value, record) {
-                    return CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.State')
-                        || "--";
+                    return CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.State') || "--";
 
                     //                if ( Ext.isEmpty(item) ) { return ''; }
                     //                return item.State || '';
@@ -351,8 +348,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         {
             name: 'PortfolioItem', type: 'object', defaultValue: null, convert:
                 function (value, record) {
-                    return CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem')
-                        || "";
+                    return CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem') || "";
                 }
         },
         {
@@ -369,7 +365,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
                 function (value, record) {
                     var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
 
-                    if (Ext.isEmpty(item)) { return '' }
+                    if (Ext.isEmpty(item)) { return ''; }
                     return item.FormattedID || '';
                 }
         },
@@ -683,7 +679,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
 
                 var time_entry_items = this.get('TimeEntryItemRecords');
                 var promises = Ext.Array.map(time_entry_items, function (time_entry_item) {
-                    return function () { return me._removeTimeEntryItem(time_entry_item); }
+                    return function () { return me._removeTimeEntryItem(time_entry_item); };
                 });
 
                 Deft.Chain.sequence(promises).then({

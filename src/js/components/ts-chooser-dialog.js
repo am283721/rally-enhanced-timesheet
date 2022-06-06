@@ -4,19 +4,19 @@
  */
 Ext.define('Rally.technicalservices.ChooserDialog', {
     extend: 'Rally.ui.dialog.Dialog',
-    alias:'widget.tschooserdialog',
+    alias: 'widget.tschooserdialog',
 
     clientMetrics: [{
-        beginEvent:'beforeshow',
-        endEvent:'show',
-        description:'dialog shown'
+        beginEvent: 'beforeshow',
+        endEvent: 'show',
+        description: 'dialog shown'
     }],
 
     width: 800,
     closable: true,
 
     searchContext: 'project',
-    
+
     config: {
         /**
          * @cfg {String}
@@ -39,7 +39,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
          * An {Ext.data.Store} config object used when building the grid
          * Handy when you need to limit the selection with store filters
          */
-        storeConfig: { },
+        storeConfig: {},
 
         /**
          * @cfg {Object}
@@ -57,14 +57,14 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
          * @cfg {Ext.grid.Column}
          * List of columns that will be used in the chooser
          */
-        columns : [],
+        columns: [],
 
         /**
          * @cfg [{String}]
          * List of field names to fetch when getting the objects
          */
         fetchFields: [],
-        
+
         /**
          * @cfg {String}
          * Text to be displayed on the button when selection is complete
@@ -103,13 +103,13 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
         ]
     },
 
-    constructor: function(config) {
+    constructor: function (config) {
         this.mergeConfig(config);
 
         this.callParent([this.config]);
     },
 
-    initComponent: function() {
+    initComponent: function () {
         this.callParent(arguments);
         this.addEvents(
             /**
@@ -128,10 +128,10 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
 
         Rally.data.ModelFactory.getModels({
             types: this.artifactTypes,
-            success: function(models) {
+            success: function (models) {
 
                 this.models = models;
-                
+
                 if (this.artifactTypes.length > 1) {
                     this._setupComboBox(models);
                 }
@@ -147,7 +147,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
     /**
      * @private
      */
-    _buildButtons: function() {
+    _buildButtons: function () {
 
         this.down('panel').addDocked({
             xtype: 'toolbar',
@@ -165,7 +165,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
                     cls: 'primary small',
                     scope: this,
                     userAction: 'clicked done in dialog',
-                    handler: function() {
+                    handler: function () {
                         var selectedRecords = this._getSelectedRecords();
                         if (!this.multiple) {
                             selectedRecords = selectedRecords[0];
@@ -190,7 +190,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
     /**
      * @private
      */
-    _buildSearchBar: function() {
+    _buildSearchBar: function () {
 
         var filterTypeComboBox = Ext.create('Ext.form.field.ComboBox', {
             itemId: 'filterTypeComboBox',
@@ -219,7 +219,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
                     flex: 1,
                     enableKeyEvents: true,
                     listeners: {
-                        keyup: function(textField, event) {
+                        keyup: function (textField, event) {
                             if (event.getKey() === Ext.EventObject.ENTER) {
                                 this._search();
                             }
@@ -235,26 +235,26 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
                 }
             ]
         });
-        
-        filterTypeComboBox.on('change',this._changeSearchField, this);
+
+        filterTypeComboBox.on('change', this._changeSearchField, this);
     },
-    
-    _changeSearchField: function(field_combobox) {
+
+    _changeSearchField: function (field_combobox) {
         var field_name = field_combobox.getValue();
-        
+
         var search_config = {
             itemId: 'searchTerms',
             emptyText: 'enter search terms',
             flex: 1
         };
-                
-        var field = this.models[this.artifactTypes[0]].getField(field_name)
+
+        var field = this.models[this.artifactTypes[0]].getField(field_name);
 
         var editor_config = {
             xtype: 'textfield',
             enableKeyEvents: true,
             listeners: {
-                keyup: function(textField, event) {
+                keyup: function (textField, event) {
                     if (event.getKey() === Ext.EventObject.ENTER) {
                         this._search();
                     }
@@ -262,19 +262,19 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
                 scope: this
             }
         };
-        
-        if ( field && field.editor && field.editor.field ) {
+
+        if (field && field.editor && field.editor.field) {
             editor_config = field.editor.field;
-            
+
             // for timeboxes to load:
-            delete editor_config.storeConfig; 
+            delete editor_config.storeConfig;
             editor_config.defaultToCurrentTimebox = true;
             editor_config.autoSelectCurrentItem = true;
-            
-            if ( editor_config.xtype == "rallytextfield" ) {
+
+            if (editor_config.xtype == "rallytextfield") {
                 editor_config.enableKeyEvents = true;
                 editor_config.listeners = {
-                    keyup: function(textField, event) {
+                    keyup: function (textField, event) {
                         if (event.getKey() === Ext.EventObject.ENTER) {
                             this._search();
                         }
@@ -283,26 +283,26 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
                 };
             } else {
                 editor_config.listeners = {
-                    scope:  this,
+                    scope: this,
                     change: this._search,
                     select: this._search
                 };
             }
         }
-        
-        var config = Ext.Object.merge(search_config,editor_config);
-        
+
+        var config = Ext.Object.merge(search_config, editor_config);
+
         var index = this.down('#searchBar').items.length - 2;
         this.down('#searchTerms') && this.down('#searchTerms').destroy();
-        this.down('#searchBar').insert(index,config);
+        this.down('#searchBar').insert(index, config);
     },
-    
+
     /**
      * @private
      * @param {Object} models Object with {Rally.domain.WsapiModel} items
      *
      */
-    _setupComboBox: function(models) {
+    _setupComboBox: function (models) {
         var searchBar = this.down('#searchBar');
         var combo = Ext.create('Ext.form.field.ComboBox', {
             xtype: 'combo',
@@ -317,7 +317,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
         });
         searchBar.insert(0, combo);
 
-        Ext.Object.each(models, function(key, model) {
+        Ext.Object.each(models, function (key, model) {
             combo.getStore().add({
                 typeName: model.typePath,
                 displayName: model.displayName,
@@ -327,7 +327,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
 
         combo.select(combo.getStore().getAt(0));
 
-        combo.on('select', function(comboBox, options) {
+        combo.on('select', function (comboBox, options) {
             var option = options[0];
             this.grid.reconfigureWithModel(option.get('wsapiModel'));
         }, this);
@@ -339,7 +339,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
      * @param {Rally.domain.WsapiModel}
      *
      */
-    _buildGrid: function(model) {
+    _buildGrid: function (model) {
 
         var mode = this.multiple ? 'MULTI' : 'SINGLE';
         this.selectionModel = Ext.create('Rally.ui.selection.CheckboxModel', {
@@ -348,13 +348,13 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
         });
 
         var store_config = this.storeConfig;
-        store_config.context = { project: Rally.getApp().getContext().getProjectRef()};
-        
-        var new_fetch = Ext.Array.merge(['ObjectID'],this.fetchFields);
+        store_config.context = { project: Rally.getApp().getContext().getProjectRef() };
+
+        var new_fetch = Ext.Array.merge(['ObjectID'], this.fetchFields);
         var current_fetch = store_config.fetch || [];
-        
-        store_config.fetch = Ext.Array.merge(new_fetch,current_fetch);
-        
+
+        store_config.fetch = Ext.Array.merge(new_fetch, current_fetch);
+
         var gridConfig = Ext.Object.merge({
             model: model,
             selModel: this.selectionModel,
@@ -376,14 +376,14 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
         this._onGridReady();
     },
 
-    _onGridReady: function() {
+    _onGridReady: function () {
         if (!this.grid.rendered) {
-            this.mon(this.grid, 'afterrender', this._onGridReady, this, {single: true});
+            this.mon(this.grid, 'afterrender', this._onGridReady, this, { single: true });
             return;
         }
 
         if (this.grid.getStore().isLoading()) {
-            this.mon(this.grid, 'load', this._onGridReady, this, {single: true});
+            this.mon(this.grid, 'load', this._onGridReady, this, { single: true });
             return;
         }
 
@@ -395,10 +395,10 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
         }
     },
 
-    _onGridLoad: function() {
-        if(this.getSelectedRef()){
+    _onGridLoad: function () {
+        if (this.getSelectedRef()) {
             var recordIndex = this.grid.getStore().find('_ref', this.getSelectedRef());
-            if(recordIndex !== -1){
+            if (recordIndex !== -1) {
                 var record = this.grid.getStore().getAt(recordIndex);
                 this.grid.getSelectionModel().select(record);
             }
@@ -409,29 +409,29 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
      * @private
      * @return {Rally.data.Model}
      */
-    _getSelectedRecords: function() {
+    _getSelectedRecords: function () {
         return this.selectionModel.getSelection();
     },
 
     /**
      * @private
      */
-    _search: function() {        
+    _search: function () {
         var terms = this.down('#searchTerms').getValue();
         var filterBy = this.down('#filterTypeComboBox').getValue();
         var filter;
-        
+
         var store_config = this.grid.storeConfig;
-        
+
         store_config.context = { project: Rally.getApp().getContext().getProjectRef() };
-        
-        if ( this.searchContext == "workspace" ) {
+
+        if (this.searchContext == "workspace") {
             store_config.context = { project: null };
         }
-        
-        var store = this.grid.getStore();        
+
+        var store = this.grid.getStore();
         store.context = store_config.context;
-        
+
         if (!Ext.isEmpty(terms)) {
             filter = Ext.create('Rally.data.wsapi.Filter', {
                 property: filterBy,
@@ -440,28 +440,28 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
             });
         }
 
-        if ( Ext.isFunction( this.down('#searchTerms').getQueryFromSelected ) ){
+        if (Ext.isFunction(this.down('#searchTerms').getQueryFromSelected)) {
             filter = this.down('#searchTerms').getQueryFromSelected();
         }
-        
+
         this.grid.filter(filter, true);
     },
 
-    _openSearchMenu: function(button) {
+    _openSearchMenu: function (button) {
         var menu = Ext.widget({
             xtype: 'rallymenu',
             items: [
-                { 
+                {
                     text: 'Search Selected Project',
-                    handler: function() {
+                    handler: function () {
                         this.searchContext = 'project';
                         this._search();
                     },
                     scope: this
                 },
-                { 
+                {
                     text: 'Search Everywhere',
-                    handler: function() {
+                    handler: function () {
                         this.searchContext = 'workspace';
                         this._search();
                     },
@@ -470,7 +470,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
             ]
         });
         menu.showBy(button.getEl());
-        if(button.toolTip) {
+        if (button.toolTip) {
             button.toolTip.hide();
         }
     }
