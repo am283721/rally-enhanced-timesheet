@@ -1,20 +1,19 @@
 Ext.define("TSTimesheet", {
     extend: 'Rally.app.App',
     componentCls: 'app',
-    logger: new Rally.technicalservices.Logger(),
     defaults: { margin: 10 },
     layout: 'border',
 
     items: [
-        {xtype:'container', itemId:'selector_box', region: 'north',  layout: { type:'hbox' }, minHeight: 25}
+        { xtype: 'container', itemId: 'selector_box', region: 'north', layout: { type: 'hbox' }, minHeight: 25 }
     ],
 
     pickableColumns: null,
     sortedColumn: null,
-    direction: '',    
+    direction: '',
     portfolioItemTypes: [],
     stateful: true,
-    stateEvents: ['columnschosen','columnmoved','columnresize','sortchange'],
+    stateEvents: ['columnschosen', 'columnmoved', 'columnresize', 'sortchange'],
     stateId: 'CA.technicalservices.timesheet.Settings.4',
 
     config: {
@@ -27,7 +26,7 @@ Ext.define("TSTimesheet", {
         }
     },
 
-    getState: function() {
+    getState: function () {
         var me = this,
             state = null;
 
@@ -39,53 +38,50 @@ Ext.define("TSTimesheet", {
         this.sortedColumn = state.sortedColumn;
         this.sortDirection = state.sortDirection;
         this.state = state;
-        this.logger.log('getting state', state);
         return state;
     },
 
-    launch: function() {
+    launch: function () {
         TSUtilities.fetchPortfolioItemTypes().then({
-            success: function(types) {
-                this.logger.saveForLater = true;
+            success: function (types) {
                 this.portfolioItemTypes = types;
                 this._addSelectors(this.down('#selector_box'));
             },
-            failure: function(msg) {
+            failure: function (msg) {
                 Ext.Msg.alert('Problem Initiating TimeSheet App', msg);
             },
             scope: this
         });
     },
 
-    _getLowestLevelPIName: function() {
+    _getLowestLevelPIName: function () {
         return this.portfolioItemTypes[0].get('Name');
     },
 
-    _addSelectors: function(container) {
+    _addSelectors: function (container) {
         container.removeAll();
-        container.add({xtype:'container',itemId:'add_button_box'});
+        container.add({ xtype: 'container', itemId: 'add_button_box' });
 
-        container.add({xtype:'container',flex: 1});
+        container.add({ xtype: 'container', flex: 1 });
 
-        container.add({xtype:'container',itemId:'other_button_box'});
+        container.add({ xtype: 'container', itemId: 'other_button_box' });
 
         var week_starts_on = this.getSetting('weekStartsOn');
-        this.logger.log('Week Start:', week_starts_on);
 
         container.add({
-            xtype:'tsarroweddate',
-            itemId:'date_selector',
+            xtype: 'tsarroweddate',
+            itemId: 'date_selector',
             fieldLabel: 'Week Starting',
             listeners: {
                 scope: this,
-                change: function(dp, new_value) {
-                    if ( Ext.isEmpty(new_value) ) { return; }
+                change: function (dp, new_value) {
+                    if (Ext.isEmpty(new_value)) { return; }
 
-                    var week_start = TSDateUtils.getBeginningOfWeekForLocalDate(new_value,week_starts_on);
-                    if ( week_start !== new_value ) {
+                    var week_start = TSDateUtils.getBeginningOfWeekForLocalDate(new_value, week_starts_on);
+                    if (week_start !== new_value) {
                         dp.setValue(week_start);
                     }
-                    if ( new_value.getDay() === week_starts_on ) {
+                    if (new_value.getDay() === week_starts_on) {
                         this.updateData();
                     }
                 }
@@ -93,11 +89,11 @@ Ext.define("TSTimesheet", {
         }).setValue(new Date());
     },
 
-    _addAddButtons: function(container) {
+    _addAddButtons: function (container) {
         container.removeAll();
 
         container.add({
-            xtype:'rallybutton',
+            xtype: 'rallybutton',
             text: 'Add My Tasks',
             toolTipText: "(in current iteration + defaults)",
             padding: 2,
@@ -110,7 +106,7 @@ Ext.define("TSTimesheet", {
 
         if (this.getSetting('showAddMyStoriesButton')) {
             container.add({
-                xtype:'rallybutton',
+                xtype: 'rallybutton',
                 text: '+ my <span class="icon-story"> </span>',
                 toolTipText: "(add my stories)",
                 padding: 2,
@@ -123,7 +119,7 @@ Ext.define("TSTimesheet", {
         }
 
         container.add({
-            xtype:'rallybutton',
+            xtype: 'rallybutton',
             text: '+<span class="icon-task"> </span>',
             disabled: false,
             toolTipText: "Search and add Tasks",
@@ -134,7 +130,7 @@ Ext.define("TSTimesheet", {
         });
 
         container.add({
-            xtype:'rallybutton',
+            xtype: 'rallybutton',
             text: '+<span class="icon-story"> </span>',
             toolTipText: "Search and add User Stories",
             disabled: false,
@@ -144,7 +140,7 @@ Ext.define("TSTimesheet", {
             }
         });
 
-        if ( this.getSetting('showTaskStateFilter') ) {
+        if (this.getSetting('showTaskStateFilter')) {
             container.add({
                 xtype: 'rallyfieldvaluecombobox',
                 model: 'Task',
@@ -152,8 +148,8 @@ Ext.define("TSTimesheet", {
                 fieldLabel: 'State:',
                 labelAlign: 'right',
                 stateful: true,
-                stateId:'task-state-filter-combo',
-                multiSelect:true,
+                stateId: 'task-state-filter-combo',
+                multiSelect: true,
                 value: ["Defined", "In-Progress", "Completed"],
                 listeners: {
                     scope: this,
@@ -163,32 +159,32 @@ Ext.define("TSTimesheet", {
         }
     },
 
-    _filterState: function(stateChange){
+    _filterState: function (stateChange) {
         var timetable = this.down('tstimetable');
 
         var stateFilter = new Ext.util.Filter({
-            filterFn: function(item) {
-                return  Ext.Array.contains(stateChange.value,item.get('State')) ||  !item.get('State');
+            filterFn: function (item) {
+                return Ext.Array.contains(stateChange.value, item.get('State')) || !item.get('State');
             }
         });
 
-        if(stateChange.value.length > 0){
+        if (stateChange.value.length > 0) {
             timetable.grid.filter(stateFilter);
-        }else{
+        } else {
             timetable.grid.filter(null, true);
         }
     },
 
-    _addConfigButtons: function(container) {
+    _addConfigButtons: function (container) {
         this.pickableColumns = this.time_table.getPickableColumns();
         container.removeAll();
 
         container.add({
-            xtype:'tscolumnpickerbutton',
+            xtype: 'tscolumnpickerbutton',
             pickableColumns: this.pickableColumns,
             listeners: {
                 scope: this,
-                columnschosen: function(button,columns) {
+                columnschosen: function (button, columns) {
                     var timetable = this.down('tstimetable');
                     this.pickableColumns = columns;
 
@@ -200,21 +196,21 @@ Ext.define("TSTimesheet", {
     },
 
     // my workproducts are stories I own and stories that have tasks I own
-    _addCurrentStories: function() {
+    _addCurrentStories: function () {
         var me = this;
         var timetable = this.down('tstimetable');
-        if ( !timetable ) { return; }
+        if (!timetable) { return; }
 
         this.setLoading("Finding my current stories...");
 
         var my_filters = Rally.data.wsapi.Filter.or([
-            {property:'Owner.ObjectID',value:this.getContext().getUser().ObjectID},
-            {property:'Tasks.Owner.ObjectID',value:this.getContext().getUser().ObjectID}
+            { property: 'Owner.ObjectID', value: this.getContext().getUser().ObjectID },
+            { property: 'Tasks.Owner.ObjectID', value: this.getContext().getUser().ObjectID }
         ]);
 
         var current_filters = Rally.data.wsapi.Filter.and([
-            {property:'Iteration.StartDate',operator: '<=', value:Rally.util.DateTime.toIsoString(this.startDate)},
-            {property:'Iteration.EndDate',  operator: '>=', value:Rally.util.DateTime.toIsoString(this.startDate)}
+            { property: 'Iteration.StartDate', operator: '<=', value: Rally.util.DateTime.toIsoString(this.startDate) },
+            { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) }
         ]);
 
         var config = {
@@ -222,67 +218,64 @@ Ext.define("TSTimesheet", {
             context: {
                 project: null
             },
-            fetch:  ['ObjectID','Name','FormattedID','WorkProduct','Project'],
+            fetch: ['ObjectID', 'Name', 'FormattedID', 'WorkProduct', 'Project'],
             filters: current_filters.and(my_filters)
         };
 
         TSUtilities.loadWsapiRecords(config).then({
             scope: this,
-            success: function(items) {
+            success: function (items) {
                 var new_item_count = items.length;
-                var current_count  = timetable.getGrid().getStore().getTotalCount();
+                var current_count = timetable.getGrid().getStore().getTotalCount();
 
-                if ( current_count + new_item_count > me.getSetting('maxRows') ) {
+                if (current_count + new_item_count > me.getSetting('maxRows')) {
                     Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
                     this.setLoading(false);
                 } else {
-                    Ext.Array.each(items, function(item){
+                    Ext.Array.each(items, function (item) {
                         timetable.addRowForItem(item);
                     });
                 }
 
                 this.setLoading(false);
             },
-            failure: function(msg) {
+            failure: function (msg) {
                 Ext.Msg.alert('Problem with my stories', msg);
             }
         });
     },
 
-    _addCurrentTasksAndDefaults: function() {
+    _addCurrentTasksAndDefaults: function () {
         var me = this;
-        this.logger.log('_addCurrentTasksAndDefaults');
 
         Deft.Chain.sequence([
             this._addCurrentTasks,
             this._addDefaults
-        ],this).then({
-            failure: function(msg) {
+        ], this).then({
+            failure: function (msg) {
                 Ext.Alert.msg('Problem adding current items', msg);
             }
-        }).always(function() { me.setLoading(false); });
+        }).always(function () { me.setLoading(false); });
     },
 
-    _addDefaults: function() {
+    _addDefaults: function () {
         var timetable = this.down('tstimetable'),
             me = this;
-        if ( !timetable ) { return; }
+        if (!timetable) { return; }
 
         var defaults = timetable.time_entry_defaults;
 
         var promises = [];
         this.setLoading('Finding my defaults...');
 
-        this.logger.log('finding defaults: ');
 
-        Ext.Object.each(defaults, function(oid,type){
-            me.logger.log('  ', oid, type);
+        Ext.Object.each(defaults, function (oid, type) {
 
-            if ( type == false ) {
+            if (type == false) {
                 return;
             }
 
-            promises.push(function() {
+            promises.push(function () {
                 var deferred = Ext.create('Deft.Deferred');
 
                 var config = {
@@ -290,32 +283,31 @@ Ext.define("TSTimesheet", {
                     context: {
                         project: null
                     },
-                    fetch:  ['ObjectID','Name','FormattedID','WorkProduct','Project'],
+                    fetch: ['ObjectID', 'Name', 'FormattedID', 'WorkProduct', 'Project'],
                     filters: [
-                        {property:'ObjectID', value: oid}
+                        { property: 'ObjectID', value: oid }
                     ]
                 };
 
                 TSUtilities.loadWsapiRecords(config).then({
                     scope: this,
-                    success: function(items) {
+                    success: function (items) {
                         var new_item_count = items.length;
-                        var current_count  = timetable.getGrid().getStore().getTotalCount();
+                        var current_count = timetable.getGrid().getStore().getTotalCount();
 
-                        if ( current_count + new_item_count > me.getSetting('maxRows') ) {
-                            Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is '+me.getSetting('maxRows')+' lines in the time sheet.');
+                        if (current_count + new_item_count > me.getSetting('maxRows')) {
+                            Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
                             me.setLoading(false);
                         } else {
-                            Ext.Array.each(items, function(task){
+                            Ext.Array.each(items, function (task) {
                                 timetable.addRowForItem(task);
                             });
                         }
 
-                        me.logger.log('Found ', items.length, type, ' items');
                         me.setLoading(false);
                         deferred.resolve(items);
                     },
-                    failure: function(msg) {
+                    failure: function (msg) {
                         deferred.reject(msg);
                     }
                 });
@@ -327,12 +319,12 @@ Ext.define("TSTimesheet", {
         return Deft.Chain.sequence(promises);
     },
 
-    _addCurrentTasks: function() {
+    _addCurrentTasks: function () {
         var me = this;
         var deferred = Ext.create('Deft.Deferred');
 
         var timetable = this.down('tstimetable');
-        if ( !timetable ) { return; }
+        if (!timetable) { return; }
 
         this.setLoading("Finding my current tasks...");
 
@@ -341,35 +333,33 @@ Ext.define("TSTimesheet", {
             context: {
                 project: null
             },
-            fetch:  ['ObjectID','Name','FormattedID','WorkProduct','Project'],
+            fetch: ['ObjectID', 'Name', 'FormattedID', 'WorkProduct', 'Project'],
             filters: [
-                {property:'Owner.ObjectID',value:this.getContext().getUser().ObjectID},
-                {property:'Iteration.StartDate',operator: '<=', value:Rally.util.DateTime.toIsoString(this.startDate)},
-                {property:'Iteration.EndDate',  operator: '>=', value:Rally.util.DateTime.toIsoString(this.startDate)}
+                { property: 'Owner.ObjectID', value: this.getContext().getUser().ObjectID },
+                { property: 'Iteration.StartDate', operator: '<=', value: Rally.util.DateTime.toIsoString(this.startDate) },
+                { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) }
             ]
         };
 
         TSUtilities.loadWsapiRecords(config).then({
             scope: this,
-            success: function(tasks) {
+            success: function (tasks) {
                 var new_item_count = tasks.length;
-                var current_count  = timetable.getGrid().getStore().getTotalCount();
+                var current_count = timetable.getGrid().getStore().getTotalCount();
 
-                if ( current_count + new_item_count > me.getSetting('maxRows') ) {
-                    Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is '+me.getSetting('maxRows')+' lines in the time sheet.');
+                if (current_count + new_item_count > me.getSetting('maxRows')) {
+                    Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
                     this.setLoading(false);
                 } else {
-                    Ext.Array.each(tasks, function(task){
+                    Ext.Array.each(tasks, function (task) {
                         timetable.addRowForItem(task);
                     });
                 }
 
-                this.logger.log('Found ', tasks.length, ' tasks in current iterations');
-
                 this.setLoading(false);
                 deferred.resolve(tasks);
             },
-            failure: function(msg) {
+            failure: function (msg) {
                 deferred.reject(msg);
             }
         });
@@ -377,11 +367,11 @@ Ext.define("TSTimesheet", {
         return deferred.promise;
     },
 
-    _findAndAddTask: function() {
+    _findAndAddTask: function () {
         var me = this;
         var timetable = this.down('tstimetable');
 
-        var fetch_fields = ['WorkProduct','Feature','Project','Name','FormattedID','ObjectID'];
+        var fetch_fields = ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID'];
 
         if (timetable) {
             Ext.create('Rally.technicalservices.ChooserDialog', {
@@ -399,23 +389,23 @@ Ext.define("TSTimesheet", {
                         attributeName: 'Name'
                     },
                     {
-                        displayName:'WorkProduct',
+                        displayName: 'WorkProduct',
                         attributeName: 'WorkProduct.Name'
                     },
                     {
-                        displayName:'Release',
+                        displayName: 'Release',
                         attributeName: 'Release'
                     },
                     {
-                        displayName:'Iteration',
+                        displayName: 'Iteration',
                         attributeName: 'Iteration'
                     },
                     {
-                        displayName:'Project',
+                        displayName: 'Project',
                         attributeName: 'Project.Name'
                     },
                     {
-                        displayName:'Owner',
+                        displayName: 'Owner',
                         attributeName: 'Owner'
                     },
                     {
@@ -438,35 +428,35 @@ Ext.define("TSTimesheet", {
                 ],
                 fetchFields: fetch_fields,
                 listeners: {
-                    artifactchosen: function(dialog, selectedRecords){
-                        if ( !Ext.isArray(selectedRecords) ) {
+                    artifactchosen: function (dialog, selectedRecords) {
+                        if (!Ext.isArray(selectedRecords)) {
                             selectedRecords = [selectedRecords];
                         }
 
                         var new_item_count = selectedRecords.length;
-                        var current_count  = timetable.getGrid().getStore().getTotalCount();
+                        var current_count = timetable.getGrid().getStore().getTotalCount();
 
-                        if ( current_count + new_item_count > me.getSetting('maxRows') ) {
-                            Ext.Msg.alert('Problem Adding Tasks', 'Cannot add items to grid. Limit is '+me.getSetting('maxRows')+' lines in the time sheet.');
+                        if (current_count + new_item_count > me.getSetting('maxRows')) {
+                            Ext.Msg.alert('Problem Adding Tasks', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
                         } else {
 
-                            Ext.Array.each(selectedRecords, function(selectedRecord){
+                            Ext.Array.each(selectedRecords, function (selectedRecord) {
                                 timetable.addRowForItem(selectedRecord);
                             });
                         }
                     },
                     scope: this
                 }
-             });
+            });
         }
     },
 
-    _findAndAddStory: function() {
+    _findAndAddStory: function () {
         var me = this;
         var timetable = this.down('tstimetable');
         if (timetable) {
             Ext.create('Rally.technicalservices.ChooserDialog', {
-                artifactTypes: ['hierarchicalrequirement','defect'],
+                artifactTypes: ['hierarchicalrequirement', 'defect'],
                 autoShow: true,
                 title: 'Choose Work Product(s)',
                 multiple: true,
@@ -480,7 +470,7 @@ Ext.define("TSTimesheet", {
                         attributeName: 'Name'
                     },
                     {
-                        displayName:'Feature',
+                        displayName: 'Feature',
                         attributeName: 'Feature.Name'
                     },
                     {
@@ -488,23 +478,23 @@ Ext.define("TSTimesheet", {
                         attributeName: 'Feature.Project.Name'
                     },
                     {
-                        displayName:'Iteration',
+                        displayName: 'Iteration',
                         attributeName: 'Iteration'
                     },
                     {
-                        displayName:'Release',
+                        displayName: 'Release',
                         attributeName: 'Release'
                     },
                     {
-                        displayName:'Project',
+                        displayName: 'Project',
                         attributeName: 'Project.Name'
                     },
                     {
-                        displayName:'Owner',
+                        displayName: 'Owner',
                         attributeName: 'Owner'
                     },
                     {
-                        displayName:'State',
+                        displayName: 'State',
                         attributeName: 'ScheduleState'
                     }
                 ],
@@ -521,39 +511,37 @@ Ext.define("TSTimesheet", {
                     'ScheduleState'
                 ],
 
-                fetchFields: ['WorkProduct','Feature','Project','Name','FormattedID','ObjectID','Release'],
+                fetchFields: ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID', 'Release'],
 
                 listeners: {
-                    artifactchosen: function(dialog, selectedRecords){
-                        if ( !Ext.isArray(selectedRecords) ) {
+                    artifactchosen: function (dialog, selectedRecords) {
+                        if (!Ext.isArray(selectedRecords)) {
                             selectedRecords = [selectedRecords];
                         }
 
                         var new_item_count = selectedRecords.length;
-                        var current_count  = timetable.getGrid().getStore().getTotalCount();
+                        var current_count = timetable.getGrid().getStore().getTotalCount();
 
-                        if ( current_count + new_item_count > me.getSetting('maxRows') ) {
-                            Ext.Msg.alert('Problem Adding Stories', 'Cannot add items to grid. Limit is '+me.getSetting('maxRows')+' lines in the time sheet.');
+                        if (current_count + new_item_count > me.getSetting('maxRows')) {
+                            Ext.Msg.alert('Problem Adding Stories', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
                         } else {
-                            Ext.Array.each(selectedRecords, function(selectedRecord){
+                            Ext.Array.each(selectedRecords, function (selectedRecord) {
                                 timetable.addRowForItem(selectedRecord);
                             });
                         }
                     },
                     scope: this
                 }
-             });
+            });
         }
     },
 
-    updateData: function() {
+    updateData: function () {
         var me = this;
-        var timetable  = this.down('tstimetable');
-        if ( ! Ext.isEmpty(timetable) ) { timetable.destroy(); }
+        var timetable = this.down('tstimetable');
+        if (!Ext.isEmpty(timetable)) { timetable.destroy(); }
 
         this.startDate = this.down('#date_selector').getValue();
-
-        this.logger.log('startDate', this.startDate);
 
         var editable = true;
 
@@ -564,20 +552,19 @@ Ext.define("TSTimesheet", {
             margin: 15,
             pickableColumns: this.pickableColumns,
             sortedColumn: this.sortedColumn,
-            sortDirection: this.sortDirection,            
+            sortDirection: this.sortDirection,
             lowestLevelPIName: this._getLowestLevelPIName(),
             startDate: this.startDate,
             editable: editable,
-            logger: me.logger,
             maxRows: me.getSetting('maxRows'),
             showEditTimeDetailsMenuItem: me.getSetting('showEditTimeDetailsMenuItem'),
             listeners: {
                 scope: this,
-                gridReady: function() {
+                gridReady: function () {
                     this._addAddButtons(this.down('#add_button_box'));
                     this._addConfigButtons(this.down('#other_button_box'));
                 },
-                sortchange: function(grid, dataIndex, direction) {
+                sortchange: function (grid, dataIndex, direction) {
                     this.sortedColumn = dataIndex;
                     this.sortDirection = direction;
                     me.fireEvent('sortchange', this, dataIndex, direction);
@@ -586,17 +573,17 @@ Ext.define("TSTimesheet", {
         });
     },
 
-    getSettingsFields: function() {
+    getSettingsFields: function () {
         var check_box_margins = '5 0 5 0';
 
         var days_of_week = [
-            {Name:'Sunday', Value:0},
-            {Name:'Monday', Value:1},
-            {Name:'Tuesday', Value:2},
-            {Name:'Wednesday', Value:3},
-            {Name:'Thursday', Value:4},
-            {Name:'Friday', Value:5},
-            {Name:'Saturday', Value:6}
+            { Name: 'Sunday', Value: 0 },
+            { Name: 'Monday', Value: 1 },
+            { Name: 'Tuesday', Value: 2 },
+            { Name: 'Wednesday', Value: 3 },
+            { Name: 'Thursday', Value: 4 },
+            { Name: 'Friday', Value: 5 },
+            { Name: 'Saturday', Value: 6 }
         ];
 
         return [{
@@ -606,10 +593,10 @@ Ext.define("TSTimesheet", {
             labelWidth: 100,
             labelAlign: 'left',
             minWidth: 200,
-            displayField:'Name',
+            displayField: 'Name',
             valueField: 'Value',
             value: this.getSetting('weekStartsOn'),
-            store: Ext.create('Rally.data.custom.Store',{
+            store: Ext.create('Rally.data.custom.Store', {
                 data: days_of_week
             }),
 
@@ -647,65 +634,34 @@ Ext.define("TSTimesheet", {
             labelAlign: 'left',
             width: 200,
             maxValue: 1000,
-            minValue:10,
+            minValue: 10,
             fieldLabel: 'Maximum number of rows',
             value: this.getSetting('maxRows') || 100,
         }
         ];
     },
 
-    getOptions: function() {
+    getOptions: function () {
         return [
             {
                 text: 'About...',
                 handler: this._launchInfo,
                 scope: this
-            },
-            {
-                text: 'Show Log',
-                handler: this._showLog,
-                scope: this
             }
         ];
     },
 
-    _showLog: function() {
-        var text = this.logger.getLogText();
-
-        this.popup = Ext.create('Rally.ui.dialog.Dialog', {
-            width      : Ext.getBody().getWidth() - 20,
-            height     : Ext.getBody().getHeight() - 20,
-            closable   : true,
-            title      : 'Log',
-            autoShow   : true,
-            layout     : 'border',
-            defaults   : {
-                layout : 'fit',
-                width  : '50%',
-                border : false
-            },
-            items: [{
-                region : 'center',
-                xtype: 'rallyrichtexteditor',
-                value: text,
-                height: Ext.getBody().getHeight() - 20
-            }]
-        });
+    _launchInfo: function () {
+        if (this.about_dialog) { this.about_dialog.destroy(); }
+        this.about_dialog = Ext.create('Rally.technicalservices.InfoLink', {});
     },
 
-    _launchInfo: function() {
-        if ( this.about_dialog ) { this.about_dialog.destroy(); }
-        this.about_dialog = Ext.create('Rally.technicalservices.InfoLink',{});
-    },
-
-    isExternal: function(){
-        return typeof(this.getAppId()) == 'undefined';
+    isExternal: function () {
+        return typeof (this.getAppId()) == 'undefined';
     },
 
     //onSettingsUpdate:  Override
-    onSettingsUpdate: function (settings){
-        this.logger.log('onSettingsUpdate',settings);
-        // Ext.apply(this, settings);
+    onSettingsUpdate: function () {
         this.launch();
     }
 });
