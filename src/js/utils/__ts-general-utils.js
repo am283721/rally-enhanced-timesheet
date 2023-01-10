@@ -1,236 +1,236 @@
 Ext.define('TSUtilities', {
-    singleton: true,
+  singleton: true,
 
-    timeLockKeyPrefix: 'rally.technicalservices.timesheet.weeklock',
-    approvalKeyPrefix: 'rally.technicalservices.timesheet.status',
-    deletionKeyPrefix: 'rally.technicalservices.timesheet.deletion',
-    pinKeyPrefix: 'rally.technicalservices.timesheet.pin',
+  timeLockKeyPrefix: 'rally.technicalservices.timesheet.weeklock',
+  approvalKeyPrefix: 'rally.technicalservices.timesheet.status',
+  deletionKeyPrefix: 'rally.technicalservices.timesheet.deletion',
+  pinKeyPrefix: 'rally.technicalservices.timesheet.pin',
 
-    archiveSuffix: '~archived',
+  archiveSuffix: '~archived',
 
-    loadWsapiRecords: function (config, returnOperation) {
-        var deferred = Ext.create('Deft.Deferred');
-        var me = this;
+  loadWsapiRecords: function (config, returnOperation) {
+    var deferred = Ext.create('Deft.Deferred');
+    var me = this;
 
-        var default_config = {
-            model: 'Defect',
-            fetch: ['ObjectID']
-        };
-        Ext.create('Rally.data.wsapi.Store', Ext.Object.merge(default_config, config)).load({
-            callback: function (records, operation, successful) {
-                if (successful) {
-                    if (returnOperation) {
-                        deferred.resolve(operation);
-                    } else {
-                        deferred.resolve(records);
-                    }
-                } else {
-                    deferred.reject('Problem loading: ' + operation.error.errors.join('. '));
-                }
-            }
-        });
-        return deferred.promise;
-    },
-
-    loadWsapiRecordsWithParallelPages: function (config, msg) {
-        var deferred = Ext.create('Deft.Deferred'),
-            me = this;
-
-        var count_check_config = Ext.clone(config);
-        count_check_config.limit = 1;
-        count_check_config.pageSize = 1;
-        count_check_config.fetch = ['ObjectID'];
-
-        this.loadWsapiRecords(count_check_config, true).then({
-            success: function (operation) {
-                config.pageSize = 200;
-                config.limit = config.pageSize;
-                var total = operation.resultSet.totalRecords;
-                var page_count = Math.ceil(total / config.pageSize);
-
-                var promises = [];
-                Ext.Array.each(_.range(1, page_count + 1), function (page_index) {
-                    var config_clone = Ext.clone(config);
-                    config_clone.currentPage = page_index;
-                    promises.push(function () {
-                        var percentage = parseInt(page_index * 100 / page_count, 10);
-                        var message = msg || "Loading values";
-                        Rally.getApp().setLoading(message + " (" + percentage + "%)");
-                        return me.loadWsapiRecords(config_clone);
-                    });
-                });
-                CA.techservices.promise.ParallelThrottle.throttle(promises, 6, me).then({
-                    success: function (results) {
-                        deferred.resolve(Ext.Array.flatten(results));
-                    },
-                    failure: function (msg) {
-                        deferred.reject(msg);
-                    }
-                });
-            },
-            failure: function (msg) {
-                deferred.reject(msg);
-            }
-        });
-        return deferred.promise;
-    },
-
-    getPreferenceProject: function () {
-        var app = Rally.getApp();
-
-        return app.getSetting('preferenceProjectRef');
-    },
-
-    isEditableProjectForCurrentUser: function (projectRef, scope) {
-        var app = scope || Rally.getApp(),
-            me = this;
-
-        if (this.currentUserIsAdmin(scope)) {
-            return true;
+    var default_config = {
+      model: 'Defect',
+      fetch: ['ObjectID']
+    };
+    Ext.create('Rally.data.wsapi.Store', Ext.Object.merge(default_config, config)).load({
+      callback: function (records, operation, successful) {
+        if (successful) {
+          if (returnOperation) {
+            deferred.resolve(operation);
+          } else {
+            deferred.resolve(records);
+          }
+        } else {
+          deferred.reject('Problem loading: ' + operation.error.errors.join('. '));
         }
+      }
+    });
+    return deferred.promise;
+  },
 
-        var project_oid = this._getOidFromRef(projectRef);
-        var editor_permissions = Ext.Array.filter(app.getContext().getPermissions().userPermissions, function (permission) {
-            if (permission.Role != "Editor" && permission.Role != "ProjectAdmin") {
-                return false;
-            }
+  loadWsapiRecordsWithParallelPages: function (config, msg) {
+    var deferred = Ext.create('Deft.Deferred'),
+      me = this;
 
-            return (me._getOidFromRef(permission._ref) == project_oid);
+    var count_check_config = Ext.clone(config);
+    count_check_config.limit = 1;
+    count_check_config.pageSize = 1;
+    count_check_config.fetch = ['ObjectID'];
+
+    this.loadWsapiRecords(count_check_config, true).then({
+      success: function (operation) {
+        config.pageSize = 200;
+        config.limit = config.pageSize;
+        var total = operation.resultSet.totalRecords;
+        var page_count = Math.ceil(total / config.pageSize);
+
+        var promises = [];
+        Ext.Array.each(_.range(1, page_count + 1), function (page_index) {
+          var config_clone = Ext.clone(config);
+          config_clone.currentPage = page_index;
+          promises.push(function () {
+            var percentage = parseInt((page_index * 100) / page_count, 10);
+            var message = msg || 'Loading values';
+            Rally.getApp().setLoading(message + ' (' + percentage + '%)');
+            return me.loadWsapiRecords(config_clone);
+          });
         });
+        CA.techservices.promise.ParallelThrottle.throttle(promises, 6, me).then({
+          success: function (results) {
+            deferred.resolve(Ext.Array.flatten(results));
+          },
+          failure: function (msg) {
+            deferred.reject(msg);
+          }
+        });
+      },
+      failure: function (msg) {
+        deferred.reject(msg);
+      }
+    });
+    return deferred.promise;
+  },
 
-        return (editor_permissions.length > 0);
-    },
+  getPreferenceProject: function () {
+    var app = Rally.getApp();
 
-    getEditableProjectForCurrentUser: function () {
-        var app = Rally.getApp();
-        if (this._currentUserCanWrite()) {
-            return app.getContext().getProjectRef();
-        }
+    return app.getSetting('preferenceProjectRef');
+  },
 
-        var workspace_oid = this._getOidFromRef(app.getContext().getWorkspaceRef());
+  isEditableProjectForCurrentUser: function (projectRef, scope) {
+    var app = scope || Rally.getApp(),
+      me = this;
 
-        var editor_permissions = Ext.Array.filter(app.getContext().getPermissions().userPermissions, function (permission) {
-            if (Ext.isEmpty(permission.Workspace)) {
-                return false;
-            }
-            var permission_oid = this._getOidFromRef(permission.Workspace);
+    if (this.currentUserIsAdmin(scope)) {
+      return true;
+    }
 
-            if (workspace_oid != permission_oid) {
-                return false;
-            }
-
-            return (permission.Role == "Editor" || permission.Role == "ProjectAdmin");
-        }, this);
-
-
-        if (editor_permissions.length > 0) {
-            return editor_permissions[0]._ref;
-        }
+    var project_oid = this._getOidFromRef(projectRef);
+    var editor_permissions = Ext.Array.filter(app.getContext().getPermissions().userPermissions, function (permission) {
+      if (permission.Role != 'Editor' && permission.Role != 'ProjectAdmin') {
         return false;
-    },
+      }
 
-    _getOidFromRef: function (ref) {
-        var ref_array = ref.replace(/\.js$/, '').split(/\//);
-        return ref_array[ref_array.length - 1].replace(/\.js/, '');
-    },
+      return me._getOidFromRef(permission._ref) == project_oid;
+    });
 
-    // true if sub or workspace admin
-    currentUserIsAdmin: function (scope) {
-        var app = scope || Rally.getApp();
+    return editor_permissions.length > 0;
+  },
 
-        if (this.currentUserIsSubAdmin()) {
-            return true;
+  getEditableProjectForCurrentUser: function () {
+    var app = Rally.getApp();
+    if (this._currentUserCanWrite()) {
+      return app.getContext().getProjectRef();
+    }
+
+    var workspace_oid = this._getOidFromRef(app.getContext().getWorkspaceRef());
+
+    var editor_permissions = Ext.Array.filter(
+      app.getContext().getPermissions().userPermissions,
+      function (permission) {
+        if (Ext.isEmpty(permission.Workspace)) {
+          return false;
+        }
+        var permission_oid = this._getOidFromRef(permission.Workspace);
+
+        if (workspace_oid != permission_oid) {
+          return false;
         }
 
-        var permissions = app.getContext().getPermissions().userPermissions;
+        return permission.Role == 'Editor' || permission.Role == 'ProjectAdmin';
+      },
+      this
+    );
 
-        var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
-            return (p.Role == "Workspace Admin" || p.Role == "Subscription Admin");
-        });
+    if (editor_permissions.length > 0) {
+      return editor_permissions[0]._ref;
+    }
+    return false;
+  },
 
-        var current_workspace_ref = app.getContext().getWorkspace()._ref;
-        var is_workspace_admin = false;
+  _getOidFromRef: function (ref) {
+    var ref_array = ref.replace(/\.js$/, '').split(/\//);
+    return ref_array[ref_array.length - 1].replace(/\.js/, '');
+  },
 
-        if (workspace_admin_list.length > 0) {
-            Ext.Array.each(workspace_admin_list, function (p) {
+  // true if sub or workspace admin
+  currentUserIsAdmin: function (scope) {
+    var app = scope || Rally.getApp();
 
-                if (current_workspace_ref.replace(/\.js$/, '') == p._ref.replace(/\.js$/, '')) {
-                    is_workspace_admin = true;
-                }
-            });
+    if (this.currentUserIsSubAdmin()) {
+      return true;
+    }
+
+    var permissions = app.getContext().getPermissions().userPermissions;
+
+    var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
+      return p.Role == 'Workspace Admin' || p.Role == 'Subscription Admin';
+    });
+
+    var current_workspace_ref = app.getContext().getWorkspace()._ref;
+    var is_workspace_admin = false;
+
+    if (workspace_admin_list.length > 0) {
+      Ext.Array.each(workspace_admin_list, function (p) {
+        if (current_workspace_ref.replace(/\.js$/, '') == p._ref.replace(/\.js$/, '')) {
+          is_workspace_admin = true;
         }
+      });
+    }
 
-        return is_workspace_admin;
-    },
+    return is_workspace_admin;
+  },
 
-    currentUserIsSubAdmin: function (scope) {
-        var app = scope || Rally.getApp();
+  currentUserIsSubAdmin: function (scope) {
+    var app = scope || Rally.getApp();
 
-        var permissions = app.getContext().getPermissions().userPermissions;
+    var permissions = app.getContext().getPermissions().userPermissions;
 
-        var sub_admin_list = Ext.Array.filter(permissions, function (p) {
-            return (p.Role == 'Subscription Admin');
-        });
+    var sub_admin_list = Ext.Array.filter(permissions, function (p) {
+      return p.Role == 'Subscription Admin';
+    });
 
-        return (sub_admin_list.length > 0);
-    },
+    return sub_admin_list.length > 0;
+  },
 
-    _currentUserCanWrite: function () {
-        var app = Rally.getApp();
+  _currentUserCanWrite: function () {
+    var app = Rally.getApp();
 
-        if (app.getContext().getUser().SubscriptionAdmin) {
-            return true;
+    if (app.getContext().getUser().SubscriptionAdmin) {
+      return true;
+    }
+
+    var permissions = app.getContext().getPermissions().userPermissions;
+
+    var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
+      return p.Role == 'Workspace Admin' || p.Role == 'Subscription Admin';
+    });
+
+    var current_workspace_ref = app.getContext().getWorkspace()._ref;
+    var can_unlock = false;
+
+    if (workspace_admin_list.length > 0) {
+      Ext.Array.each(workspace_admin_list, function (p) {
+        if (current_workspace_ref.replace(/\.js$/, '') == p._ref.replace(/\.js$/, '')) {
+          can_unlock = true;
         }
+      });
+    }
 
-        var permissions = app.getContext().getPermissions().userPermissions;
+    return can_unlock;
+  },
 
-        var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
-            return (p.Role == "Workspace Admin" || p.Role == "Subscription Admin");
-        });
+  _currentUserCanUnapprove: function () {
+    return this.currentUserIsAdmin();
+  },
 
-        var current_workspace_ref = app.getContext().getWorkspace()._ref;
-        var can_unlock = false;
+  fetchPortfolioItemTypes: function () {
+    var config = {
+      model: 'TypeDefinition',
+      fetch: ['TypePath', 'Ordinal', 'Name'],
+      filters: [{ property: 'TypePath', operator: 'contains', value: 'PortfolioItem/' }],
+      sorters: [{ property: 'Ordinal', direction: 'ASC' }]
+    };
 
-        if (workspace_admin_list.length > 0) {
-            Ext.Array.each(workspace_admin_list, function (p) {
+    return TSUtilities.loadWsapiRecords(config);
+  },
 
-                if (current_workspace_ref.replace(/\.js$/, '') == p._ref.replace(/\.js$/, '')) {
-                    can_unlock = true;
-                }
-            });
-        }
-
-        return can_unlock;
-    },
-
-    _currentUserCanUnapprove: function () {
-        return this.currentUserIsAdmin();
-    },
-
-    fetchPortfolioItemTypes: function () {
-        var config = {
-            model: 'TypeDefinition',
-            fetch: ["TypePath", "Ordinal", "Name"],
-            filters: [{ property: 'TypePath', operator: 'contains', value: 'PortfolioItem/' }],
-            sorters: [{ property: 'Ordinal', direction: 'ASC' }]
-        };
-
-        return TSUtilities.loadWsapiRecords(config);
-    },
-
-    fetchField: function (modelName, fieldName) {
-        var deferred = Ext.create('Deft.Deferred');
-        Rally.data.ModelFactory.getModel({
-            type: modelName,
-            success: function (model) {
-                deferred.resolve(model.getField(fieldName));
-            },
-            failure: function () {
-                var error = "Could not load schedule states";
-                deferred.reject(error);
-            }
-        });
-        return deferred.promise;
-    },
-
+  fetchField: function (modelName, fieldName) {
+    var deferred = Ext.create('Deft.Deferred');
+    Rally.data.ModelFactory.getModel({
+      type: modelName,
+      success: function (model) {
+        deferred.resolve(model.getField(fieldName));
+      },
+      failure: function () {
+        var error = 'Could not load schedule states';
+        deferred.reject(error);
+      }
+    });
+    return deferred.promise;
+  }
 });
