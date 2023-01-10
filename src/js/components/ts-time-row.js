@@ -241,20 +241,6 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   fields: [
     { name: '__SecretKey', type: 'string' },
     { name: 'Pinned', type: 'boolean', defaultValue: false },
-
-    {
-      name: 'DragAndDropRank',
-      type: 'object',
-      defaultValue: null,
-      convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
-        if (Ext.isEmpty(item)) {
-          return '';
-        }
-        return item.DragAndDropRank || '';
-      }
-    },
-
     {
       name: 'Project',
       type: 'object',
@@ -441,6 +427,19 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     },
 
     {
+      name: 'Release',
+      type: 'string',
+      defaultValue: null,
+      convert: function (value, record) {
+        return (
+          CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.Release') ||
+          CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task.Release') ||
+          ''
+        );
+      }
+    },
+
+    {
       name: 'Iteration',
       type: 'object',
       defaultValue: null,
@@ -578,12 +577,10 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   save: function (v) {
-    var deferred = Ext.create('Deft.Deferred'),
-      me = this,
-      changes = this.getChanges();
-
+    var me = this;
+    var changes = this.getChanges();
     var promises = [];
-    var week_start_date = this.get('WeekStartDate');
+    // var week_start_date = this.get('WeekStartDate');
 
     Ext.Object.each(changes, function (field, value) {
       var value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(me.get('WeekStartDate'), me.get('WeekStart'), field);

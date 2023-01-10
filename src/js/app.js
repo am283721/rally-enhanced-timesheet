@@ -20,7 +20,7 @@ Ext.define('TSTimesheet', {
       weekStartsOn: 0,
       showAddMyStoriesButton: false,
       showEditTimeDetailsMenuItem: false,
-      showTaskStateFilter: true
+      showTaskStateFilter: false
     }
   },
 
@@ -61,8 +61,6 @@ Ext.define('TSTimesheet', {
     container.add({ xtype: 'container', itemId: 'add_button_box' });
 
     container.add({ xtype: 'container', flex: 1 });
-
-    container.add({ xtype: 'container', itemId: 'other_button_box' });
 
     var week_starts_on = this.getSetting('weekStartsOn');
 
@@ -175,26 +173,6 @@ Ext.define('TSTimesheet', {
     } else {
       timetable.grid.filter(null, true);
     }
-  },
-
-  _addConfigButtons: function (container) {
-    this.pickableColumns = this.time_table.getPickableColumns();
-    container.removeAll();
-
-    container.add({
-      xtype: 'tscolumnpickerbutton',
-      pickableColumns: this.pickableColumns,
-      listeners: {
-        scope: this,
-        columnschosen: function (button, columns) {
-          var timetable = this.down('tstimetable');
-          this.pickableColumns = columns;
-
-          timetable.setPickableColumns(columns);
-          this.fireEvent('columnschosen');
-        }
-      }
-    });
   },
 
   // my workproducts are stories I own and stories that have tasks I own
@@ -342,7 +320,8 @@ Ext.define('TSTimesheet', {
       filters: [
         { property: 'Owner.ObjectID', value: this.getContext().getUser().ObjectID },
         { property: 'Iteration.StartDate', operator: '<=', value: Rally.util.DateTime.toIsoString(this.startDate) },
-        { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) }
+        { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) },
+        { property: 'State', operator: '!=', value: 'Completed' }
       ]
     };
 
@@ -375,7 +354,7 @@ Ext.define('TSTimesheet', {
   _findAndAddTask: function () {
     var me = this;
     var timetable = this.down('tstimetable');
-
+    var filters = [{ property: 'State', operator: '!=', value: 'Completed' }];
     var fetch_fields = ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID'];
 
     if (timetable) {
@@ -383,7 +362,14 @@ Ext.define('TSTimesheet', {
         artifactTypes: ['task'],
         autoShow: true,
         multiple: true,
+        width: 1500,
         title: 'Choose Task(s)',
+        context: {
+          project: null
+        },
+        storeConfig: {
+          filters: filters
+        },
         filterableFields: [
           {
             displayName: 'Formatted ID',
@@ -396,14 +382,6 @@ Ext.define('TSTimesheet', {
           {
             displayName: 'WorkProduct',
             attributeName: 'WorkProduct.Name'
-          },
-          {
-            displayName: 'Release',
-            attributeName: 'Release'
-          },
-          {
-            displayName: 'Iteration',
-            attributeName: 'Iteration'
           },
           {
             displayName: 'Project',
@@ -458,12 +436,22 @@ Ext.define('TSTimesheet', {
   _findAndAddStory: function () {
     var me = this;
     var timetable = this.down('tstimetable');
+    var filters = Ext.create('Rally.data.QueryFilter', { property: 'ScheduleState', operator: '=', value: 'Requested' });
+    filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'Defined' });
+    filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'In-Progress' });
+    filters = filters.and({ property: 'DirectChildrenCount', operator: '=', value: 0 });
+    filters.toString();
+
     if (timetable) {
       Ext.create('Rally.technicalservices.ChooserDialog', {
         artifactTypes: ['hierarchicalrequirement', 'defect'],
         autoShow: true,
         title: 'Choose Work Product(s)',
         multiple: true,
+        width: 1500,
+        storeConfig: {
+          filters: filters
+        },
         filterableFields: [
           {
             displayName: 'Formatted ID',
@@ -474,32 +462,12 @@ Ext.define('TSTimesheet', {
             attributeName: 'Name'
           },
           {
-            displayName: 'Feature',
-            attributeName: 'Feature.Name'
-          },
-          {
-            displayName: 'Feature Project',
-            attributeName: 'Feature.Project.Name'
-          },
-          {
-            displayName: 'Iteration',
-            attributeName: 'Iteration'
-          },
-          {
-            displayName: 'Release',
-            attributeName: 'Release'
-          },
-          {
             displayName: 'Project',
             attributeName: 'Project.Name'
           },
           {
             displayName: 'Owner',
             attributeName: 'Owner'
-          },
-          {
-            displayName: 'State',
-            attributeName: 'ScheduleState'
           }
         ],
         columns: [
@@ -508,8 +476,8 @@ Ext.define('TSTimesheet', {
             dataIndex: 'FormattedID'
           },
           'Name',
-          'Iteration',
           'Release',
+          'Iteration',
           'Project',
           'Owner',
           'ScheduleState'
@@ -568,7 +536,6 @@ Ext.define('TSTimesheet', {
         scope: this,
         gridReady: function () {
           this._addAddButtons(this.down('#add_button_box'));
-          this._addConfigButtons(this.down('#other_button_box'));
         },
         sortchange: function (grid, dataIndex, direction) {
           this.sortedColumn = dataIndex;

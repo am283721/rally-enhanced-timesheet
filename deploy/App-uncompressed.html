@@ -2,13 +2,499 @@
 <html>
 <head>
     <title>Rally Enhanced Timesheet</title>
-    <!--  Build Date: Tue Jan 10 2023 10:00:50 GMT+0100 (Central European Standard Time) -->
-    <!--  Version: "0.1.1"-->
+    <!--  Build Date: Tue Jan 10 2023 10:42:06 GMT+0100 (Central European Standard Time) -->
+    <!--  Version: "0.1.2"-->
     <!--  Repository: "https:/github.com/am283721/rally-enhanced-timesheet"-->
     <script type="text/javascript" src="/apps/2.1/sdk-debug.js"></script>
 
     <script type="text/javascript">
         Rally.onReady(function () {
+                Ext.define('TSUtilities', {
+  singleton: true,
+
+  timeLockKeyPrefix: 'rally.technicalservices.timesheet.weeklock',
+  approvalKeyPrefix: 'rally.technicalservices.timesheet.status',
+  deletionKeyPrefix: 'rally.technicalservices.timesheet.deletion',
+  pinKeyPrefix: 'rally.technicalservices.timesheet.pin',
+
+  archiveSuffix: '~archived',
+
+  loadWsapiRecords: function (config, returnOperation) {
+    var deferred = Ext.create('Deft.Deferred');
+    var me = this;
+
+    var default_config = {
+      model: 'Defect',
+      fetch: ['ObjectID']
+    };
+    Ext.create('Rally.data.wsapi.Store', Ext.Object.merge(default_config, config)).load({
+      callback: function (records, operation, successful) {
+        if (successful) {
+          if (returnOperation) {
+            deferred.resolve(operation);
+          } else {
+            deferred.resolve(records);
+          }
+        } else {
+          deferred.reject('Problem loading: ' + operation.error.errors.join('. '));
+        }
+      }
+    });
+    return deferred.promise;
+  },
+
+  loadWsapiRecordsWithParallelPages: function (config, msg) {
+    var deferred = Ext.create('Deft.Deferred'),
+      me = this;
+
+    var count_check_config = Ext.clone(config);
+    count_check_config.limit = 1;
+    count_check_config.pageSize = 1;
+    count_check_config.fetch = ['ObjectID'];
+
+    this.loadWsapiRecords(count_check_config, true).then({
+      success: function (operation) {
+        config.pageSize = 200;
+        config.limit = config.pageSize;
+        var total = operation.resultSet.totalRecords;
+        var page_count = Math.ceil(total / config.pageSize);
+
+        var promises = [];
+        Ext.Array.each(_.range(1, page_count + 1), function (page_index) {
+          var config_clone = Ext.clone(config);
+          config_clone.currentPage = page_index;
+          promises.push(function () {
+            var percentage = parseInt((page_index * 100) / page_count, 10);
+            var message = msg || 'Loading values';
+            Rally.getApp().setLoading(message + ' (' + percentage + '%)');
+            return me.loadWsapiRecords(config_clone);
+          });
+        });
+        CA.techservices.promise.ParallelThrottle.throttle(promises, 6, me).then({
+          success: function (results) {
+            deferred.resolve(Ext.Array.flatten(results));
+          },
+          failure: function (msg) {
+            deferred.reject(msg);
+          }
+        });
+      },
+      failure: function (msg) {
+        deferred.reject(msg);
+      }
+    });
+    return deferred.promise;
+  },
+
+  getPreferenceProject: function () {
+    var app = Rally.getApp();
+
+    return app.getSetting('preferenceProjectRef');
+  },
+
+  isEditableProjectForCurrentUser: function (projectRef, scope) {
+    var app = scope || Rally.getApp(),
+      me = this;
+
+    if (this.currentUserIsAdmin(scope)) {
+      return true;
+    }
+
+    var project_oid = this._getOidFromRef(projectRef);
+    var editor_permissions = Ext.Array.filter(app.getContext().getPermissions().userPermissions, function (permission) {
+      if (permission.Role != 'Editor' && permission.Role != 'ProjectAdmin') {
+        return false;
+      }
+
+      return me._getOidFromRef(permission._ref) == project_oid;
+    });
+
+    return editor_permissions.length > 0;
+  },
+
+  getEditableProjectForCurrentUser: function () {
+    var app = Rally.getApp();
+    if (this._currentUserCanWrite()) {
+      return app.getContext().getProjectRef();
+    }
+
+    var workspace_oid = this._getOidFromRef(app.getContext().getWorkspaceRef());
+
+    var editor_permissions = Ext.Array.filter(
+      app.getContext().getPermissions().userPermissions,
+      function (permission) {
+        if (Ext.isEmpty(permission.Workspace)) {
+          return false;
+        }
+        var permission_oid = this._getOidFromRef(permission.Workspace);
+
+        if (workspace_oid != permission_oid) {
+          return false;
+        }
+
+        return permission.Role == 'Editor' || permission.Role == 'ProjectAdmin';
+      },
+      this
+    );
+
+    if (editor_permissions.length > 0) {
+      return editor_permissions[0]._ref;
+    }
+    return false;
+  },
+
+  _getOidFromRef: function (ref) {
+    var ref_array = ref.replace(/\.js$/, '').split(/\//);
+    return ref_array[ref_array.length - 1].replace(/\.js/, '');
+  },
+
+  // true if sub or workspace admin
+  currentUserIsAdmin: function (scope) {
+    var app = scope || Rally.getApp();
+
+    if (this.currentUserIsSubAdmin()) {
+      return true;
+    }
+
+    var permissions = app.getContext().getPermissions().userPermissions;
+
+    var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
+      return p.Role == 'Workspace Admin' || p.Role == 'Subscription Admin';
+    });
+
+    var current_workspace_ref = app.getContext().getWorkspace()._ref;
+    var is_workspace_admin = false;
+
+    if (workspace_admin_list.length > 0) {
+      Ext.Array.each(workspace_admin_list, function (p) {
+        if (current_workspace_ref.replace(/\.js$/, '') == p._ref.replace(/\.js$/, '')) {
+          is_workspace_admin = true;
+        }
+      });
+    }
+
+    return is_workspace_admin;
+  },
+
+  currentUserIsSubAdmin: function (scope) {
+    var app = scope || Rally.getApp();
+
+    var permissions = app.getContext().getPermissions().userPermissions;
+
+    var sub_admin_list = Ext.Array.filter(permissions, function (p) {
+      return p.Role == 'Subscription Admin';
+    });
+
+    return sub_admin_list.length > 0;
+  },
+
+  _currentUserCanWrite: function () {
+    var app = Rally.getApp();
+
+    if (app.getContext().getUser().SubscriptionAdmin) {
+      return true;
+    }
+
+    var permissions = app.getContext().getPermissions().userPermissions;
+
+    var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
+      return p.Role == 'Workspace Admin' || p.Role == 'Subscription Admin';
+    });
+
+    var current_workspace_ref = app.getContext().getWorkspace()._ref;
+    var can_unlock = false;
+
+    if (workspace_admin_list.length > 0) {
+      Ext.Array.each(workspace_admin_list, function (p) {
+        if (current_workspace_ref.replace(/\.js$/, '') == p._ref.replace(/\.js$/, '')) {
+          can_unlock = true;
+        }
+      });
+    }
+
+    return can_unlock;
+  },
+
+  _currentUserCanUnapprove: function () {
+    return this.currentUserIsAdmin();
+  },
+
+  fetchPortfolioItemTypes: function () {
+    var config = {
+      model: 'TypeDefinition',
+      fetch: ['TypePath', 'Ordinal', 'Name'],
+      filters: [{ property: 'TypePath', operator: 'contains', value: 'PortfolioItem/' }],
+      sorters: [{ property: 'Ordinal', direction: 'ASC' }]
+    };
+
+    return TSUtilities.loadWsapiRecords(config);
+  },
+
+  fetchField: function (modelName, fieldName) {
+    var deferred = Ext.create('Deft.Deferred');
+    Rally.data.ModelFactory.getModel({
+      type: modelName,
+      success: function (model) {
+        deferred.resolve(model.getField(fieldName));
+      },
+      failure: function () {
+        var error = 'Could not load schedule states';
+        deferred.reject(error);
+      }
+    });
+    return deferred.promise;
+  }
+});
+
+                /**
+ * A link that pops up a version dialog box
+ */
+
+Ext.define('Rally.technicalservices.InfoLink', {
+  extend: 'Rally.ui.dialog.Dialog',
+  alias: 'widget.tsinfolink',
+
+  /**
+   * @cfg {String} informationHtml
+   * Additional text to be displayed on the popup dialog (for exmaple,
+   * to add a description of the app's use or functionality)
+   */
+  informationHtml: null,
+
+  /**
+   *
+   * cfg {String} title
+   * The title for the dialog box
+   */
+  title: 'Build Information',
+
+  defaults: { padding: 5, margin: 5 },
+
+  closable: true,
+
+  draggable: true,
+
+  autoShow: true,
+
+  width: 350,
+
+  initComponent: function () {
+    var id = Ext.id(this);
+    this.title = "<span class='icon-help'> </span>" + this.title;
+    this.callParent(arguments);
+  },
+
+  _generateChecksum: function (string) {
+    var chk = 0x12345678,
+      i;
+    string = string.replace(/var CHECKSUM = .*;/, '');
+    string = string.replace(/\s/g, ''); //Remove all whitespace from the string.
+
+    for (i = 0; i < string.length; i++) {
+      chk += string.charCodeAt(i) * i;
+    }
+
+    return chk;
+  },
+
+  _checkChecksum: function (container) {
+    var deferred = Ext.create('Deft.Deferred');
+    var me = this;
+
+    Ext.Ajax.request({
+      url: document.URL,
+      params: {
+        id: 1
+      },
+      success: function (response) {
+        text = response.responseText;
+        if (CHECKSUM) {
+          if (CHECKSUM !== me._generateChecksum(text)) {
+            console.log("Checksums don't match!");
+            deferred.resolve(false);
+            return;
+          }
+        }
+        deferred.resolve(true);
+      }
+    });
+
+    return deferred.promise;
+  },
+
+  afterRender: function () {
+    var app = Rally.getApp();
+
+    if (!app.isExternal()) {
+      this._checkChecksum(app).then({
+        scope: this,
+        success: function (result) {
+          if (!result) {
+            this.addDocked({
+              xtype: 'container',
+              cls: 'build-info',
+              padding: 2,
+              html: '<span class="icon-warning"> </span>Checksums do not match'
+            });
+          }
+        },
+        failure: function (msg) {
+          console.error(msg);
+        }
+      });
+    } else {
+      this.addDocked({
+        xtype: 'container',
+        cls: 'build-info',
+        padding: 2,
+        html: '... Running externally'
+      });
+    }
+    this.callParent(arguments);
+  },
+
+  beforeRender: function () {
+    var me = this;
+    this.callParent(arguments);
+
+    if (this.informationHtml) {
+      this.addDocked({
+        xtype: 'component',
+        componentCls: 'intro-panel',
+        padding: 2,
+        html: this.informationHtml
+      });
+    }
+
+    this.addDocked({
+      xtype: 'container',
+      cls: 'build-info',
+      padding: 2,
+      html: 'This app was originally created by the Rally Technical Services Team and enhanced by Andrew McGrath.'
+    });
+
+    if (APP_BUILD_DATE) {
+      this.addDocked({
+        xtype: 'container',
+        cls: 'build-info',
+        padding: 2,
+        html: 'Build date/time: ' + APP_BUILD_DATE
+      });
+    }
+  }
+});
+
+                Ext.define('TSDateUtils', {
+  singleton: true,
+
+  getBeginningOfWeekForLocalDate: function (week_date, weekStartDay) {
+    if (Ext.isEmpty(weekStartDay)) {
+      weekStartDay = 0;
+    }
+
+    var dayInWeek = week_date.getDay();
+    if (week_date.getUTCHours() === 0) {
+      // already in UTC
+      dayInWeek = week_date.getUTCDay();
+    }
+    var delta = weekStartDay - dayInWeek;
+    if (dayInWeek < weekStartDay) {
+      delta = weekStartDay - dayInWeek - 7;
+    }
+
+    var start_of_week_here = Ext.Date.add(week_date, Ext.Date.DAY, delta);
+    return start_of_week_here;
+  },
+
+  getBeginningOfWeekISOForLocalDate: function (week_date, showShiftedTimeStamp, weekStartDay) {
+    if (Ext.isEmpty(weekStartDay)) {
+      weekStartDay = 0;
+    }
+
+    var local_beginning = TSDateUtils.getBeginningOfWeekForLocalDate(week_date, weekStartDay);
+
+    if (showShiftedTimeStamp) {
+      return Rally.util.DateTime.toIsoString(local_beginning).replace(/T.*$/, 'T00:00:00.0Z');
+    }
+
+    if (local_beginning.getUTCHours() === 0) {
+      return Rally.util.DateTime.toIsoString(local_beginning, true).replace(/T.*$/, '');
+    }
+    return Rally.util.DateTime.toIsoString(local_beginning, false).replace(/T.*$/, '');
+  },
+
+  formatShiftedDate: function (jsdate, format) {
+    var offset = jsdate.getTimezoneOffset(); // 480 is pacific, -330 is india
+
+    if (offset > 0) {
+      jsdate = Rally.util.DateTime.add(jsdate, 'minute', offset);
+    }
+
+    return Ext.util.Format.date(jsdate, format);
+  },
+
+  pretendIMeantUTC: function (jsdate, asUTC) {
+    var offset = jsdate.getTimezoneOffset();
+
+    if (asUTC) {
+      return Rally.util.DateTime.toIsoString(jsdate).replace(/T.*$/, 'T00:00:00.000Z');
+    }
+    var shiftedDate = Rally.util.DateTime.add(jsdate, 'minute', -1 * offset);
+
+    return shiftedDate;
+  },
+
+  // returns a promise, fulfills with a boolean
+  isApproved: function (week_start_iso, user_oid) {
+    var deferred = Ext.create('Deft.Deferred');
+
+    var short_iso_date = week_start_iso;
+    var key_user_oid = user_oid || Rally.getApp().getContext().getUser().ObjectID;
+
+    var key = Ext.String.format('{0}.{1}.{2}', TSUtilities.approvalKeyPrefix, short_iso_date, key_user_oid);
+
+    this._loadWeekStatusPreference(key).then({
+      success: function (preference) {
+        if (preference.length === 0) {
+          deferred.resolve(false);
+          return;
+        }
+        var value = preference[0].get('Value');
+        if (/{/.test(value)) {
+          var status_object = Ext.JSON.decode(value);
+          if (status_object.status == 'Approved') {
+            deferred.resolve(true);
+            return;
+          }
+        }
+
+        deferred.resolve(false);
+      },
+      failure: function (msg) {
+        deferred.reject(msg);
+      }
+    });
+
+    return deferred.promise;
+  },
+
+  _loadWeekStatusPreference: function (key) {
+    var config = {
+      model: 'Preference',
+      limit: 1,
+      pageSize: 1,
+      filters: [
+        { property: 'Name', operator: 'contains', value: key },
+        { property: 'Name', operator: '!contains', value: TSUtilities.archiveSuffix }
+      ],
+      fetch: ['Name', 'Value'],
+      sorters: [{ property: 'CreationDate', direction: 'DESC' }]
+    };
+
+    return TSUtilities.loadWsapiRecords(config);
+  }
+});
+
                 Ext.define('TSArrowedDate', {
   extend: 'Ext.container.Container',
   alias: 'widget.tsarroweddate',
@@ -1028,7 +1514,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       labelWidth: 75,
       width: 130,
       fieldLabel: 'Adjustment:',
-      maxValue: 24,
+      maxValue: 36,
       minValue: 0
     });
 
@@ -1159,7 +1645,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       fieldLabel: ' = ',
       labelSeparator: '',
       editable: false,
-      maxValue: 24,
+      maxValue: 36,
       minValue: 0,
       spinDownEnabled: false,
       spinUpEnabled: false,
@@ -1581,20 +2067,6 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   fields: [
     { name: '__SecretKey', type: 'string' },
     { name: 'Pinned', type: 'boolean', defaultValue: false },
-
-    {
-      name: 'DragAndDropRank',
-      type: 'object',
-      defaultValue: null,
-      convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
-        if (Ext.isEmpty(item)) {
-          return '';
-        }
-        return item.DragAndDropRank || '';
-      }
-    },
-
     {
       name: 'Project',
       type: 'object',
@@ -1781,6 +2253,19 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     },
 
     {
+      name: 'Release',
+      type: 'string',
+      defaultValue: null,
+      convert: function (value, record) {
+        return (
+          CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.Release') ||
+          CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task.Release') ||
+          ''
+        );
+      }
+    },
+
+    {
       name: 'Iteration',
       type: 'object',
       defaultValue: null,
@@ -1918,12 +2403,10 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   save: function (v) {
-    var deferred = Ext.create('Deft.Deferred'),
-      me = this,
-      changes = this.getChanges();
-
+    var me = this;
+    var changes = this.getChanges();
     var promises = [];
-    var week_start_date = this.get('WeekStartDate');
+    // var week_start_date = this.get('WeekStartDate');
 
     Ext.Object.each(changes, function (field, value) {
       var value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(me.get('WeekStartDate'), me.get('WeekStart'), field);
@@ -2590,6 +3073,7 @@ Ext.define('CA.techservices.TimeTable', {
   _updateData: function () {
     this.setLoading('Loading time...');
     var me = this;
+    me.maxRows = 48;
 
     Deft.Chain.sequence([this._loadTimeEntryItems, this._loadTimeEntryValues, this._loadTimeDetailPreferences, this._loadDefaultSettings], this).then({
       scope: this,
@@ -2634,7 +3118,6 @@ Ext.define('CA.techservices.TimeTable', {
     this.removeAll();
     var me = this,
       table_store = Ext.create('Rally.data.custom.Store', {
-        groupField: '__SecretKey',
         model: 'CA.techservices.timesheet.TimeRow',
         data: rows,
         pageSize: me.maxRows,
@@ -2653,10 +3136,6 @@ Ext.define('CA.techservices.TimeTable', {
       disableSelection: true,
       enableColumnMove: false,
       enableColumnResize: false,
-      defaultSortToRank: true,
-      //            stateful: true,
-      //    stateEvents: ['columnschosen','columnmoved','columnresize'],
-      //            stateId: 'CA.technicalservices.timesheet.Settings.2',
       features: [
         {
           ftype: 'summary',
@@ -2783,30 +3262,18 @@ Ext.define('CA.techservices.TimeTable', {
       me = this;
 
     columns.push({
-      dataIndex: 'DragAndDropRank',
-      text: 'Rank',
-      width: 50,
-      editor: null,
-      hidden: false,
-      menuDisabled: true,
-      renderer: function (value, meta, record, rowIndex, colIndex, gridStore, view) {
-        return me.getRankValue(record, gridStore);
-      }
-    });
-
-    columns.push({
       dataIndex: 'Project',
       text: 'Project',
       flex: 1,
       editor: null,
-      sortable: false,
+      sortable: true,
       hidden: false,
       menuDisabled: true,
       renderer: function (value, meta, record) {
-        if (Ext.isEmpty(value)) {
+        if (value < 0) {
           return '--';
         }
-        return value._refObjectName;
+        return record.get('Project').Name;
       }
     });
 
@@ -2900,15 +3367,15 @@ Ext.define('CA.techservices.TimeTable', {
     //     editor: null
     // });
 
-    columns.push({
-      dataIndex: 'WorkProductPriority',
-      text: 'Priority',
-      sortable: true,
-      width: 50,
-      hidden: true,
-      menuDisabled: true,
-      editor: null
-    });
+    // columns.push({
+    //   dataIndex: 'WorkProductPriority',
+    //   text: 'Priority',
+    //   sortable: true,
+    //   width: 50,
+    //   hidden: true,
+    //   menuDisabled: true,
+    //   editor: null
+    // });
 
     if (Ext.isEmpty(this.lowestLevelPIName)) {
       columns.push({
@@ -3007,8 +3474,24 @@ Ext.define('CA.techservices.TimeTable', {
     }
 
     columns.push({
+      dataIndex: 'Release',
+      text: 'Release',
+      width: 150,
+      editor: null,
+      sortable: false,
+      menuDisabled: true,
+      renderer: function (value, meta, record) {
+        if (Ext.isEmpty(value)) {
+          return '--';
+        }
+        return value._refObjectName;
+      }
+    });
+
+    columns.push({
       dataIndex: 'Iteration',
       text: 'Iteration',
+      width: 150,
       editor: null,
       sortable: false,
       menuDisabled: true,
@@ -3104,15 +3587,15 @@ Ext.define('CA.techservices.TimeTable', {
 
     columns.push(state_config);
 
-    columns.push({
-      dataIndex: 'Est',
-      text: 'Estimate',
-      sortable: true,
-      width: 50,
-      hidden: true,
-      menuDisabled: true,
-      editor: null
-    });
+    // columns.push({
+    //   dataIndex: 'Est',
+    //   text: 'Estimate',
+    //   sortable: true,
+    //   width: 50,
+    //   hidden: true,
+    //   menuDisabled: true,
+    //   editor: null
+    // });
 
     var todo_config = {
       dataIndex: 'ToDo',
@@ -3301,13 +3784,9 @@ Ext.define('CA.techservices.TimeTable', {
         field: Ext.create('Rally.ui.NumberField', {
           xtype: 'rallynumberfield',
           minValue: minValue,
-          maxValue: 24,
+          maxValue: 36,
           disabled: disabled,
-          selectOnFocus: true,
-          keyNavEnabled: false,
-          mouseWheelEnabled: false,
-          spinDownEnabled: false,
-          spinUpEnabled: false
+          selectOnFocus: true
         }),
         listeners: {
           complete: function (field, new_value, old_value) {
@@ -3544,6 +4023,8 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _loadTimeEntryItems: function () {
+    projectScopeUp = true;
+    projectScopeDown = true;
     var me = this;
     this.setLoading('Loading time entry items...');
 
@@ -3563,6 +4044,7 @@ Ext.define('CA.techservices.TimeTable', {
       fetch: this.time_entry_item_fetch,
       enableRankFieldParameterAutoMapping: false,
       filters: filters,
+      sorters: [{ property: 'ProjectDisplayString', direction: 'ASC' }],
       limit: me.maxRows * 2,
       pageSize: me.maxRows * 2
     };
@@ -3614,492 +4096,6 @@ Ext.define('CA.techservices.TimeTable', {
   }
 });
 
-                Ext.define('TSUtilities', {
-  singleton: true,
-
-  timeLockKeyPrefix: 'rally.technicalservices.timesheet.weeklock',
-  approvalKeyPrefix: 'rally.technicalservices.timesheet.status',
-  deletionKeyPrefix: 'rally.technicalservices.timesheet.deletion',
-  pinKeyPrefix: 'rally.technicalservices.timesheet.pin',
-
-  archiveSuffix: '~archived',
-
-  loadWsapiRecords: function (config, returnOperation) {
-    var deferred = Ext.create('Deft.Deferred');
-    var me = this;
-
-    var default_config = {
-      model: 'Defect',
-      fetch: ['ObjectID']
-    };
-    Ext.create('Rally.data.wsapi.Store', Ext.Object.merge(default_config, config)).load({
-      callback: function (records, operation, successful) {
-        if (successful) {
-          if (returnOperation) {
-            deferred.resolve(operation);
-          } else {
-            deferred.resolve(records);
-          }
-        } else {
-          deferred.reject('Problem loading: ' + operation.error.errors.join('. '));
-        }
-      }
-    });
-    return deferred.promise;
-  },
-
-  loadWsapiRecordsWithParallelPages: function (config, msg) {
-    var deferred = Ext.create('Deft.Deferred'),
-      me = this;
-
-    var count_check_config = Ext.clone(config);
-    count_check_config.limit = 1;
-    count_check_config.pageSize = 1;
-    count_check_config.fetch = ['ObjectID'];
-
-    this.loadWsapiRecords(count_check_config, true).then({
-      success: function (operation) {
-        config.pageSize = 200;
-        config.limit = config.pageSize;
-        var total = operation.resultSet.totalRecords;
-        var page_count = Math.ceil(total / config.pageSize);
-
-        var promises = [];
-        Ext.Array.each(_.range(1, page_count + 1), function (page_index) {
-          var config_clone = Ext.clone(config);
-          config_clone.currentPage = page_index;
-          promises.push(function () {
-            var percentage = parseInt((page_index * 100) / page_count, 10);
-            var message = msg || 'Loading values';
-            Rally.getApp().setLoading(message + ' (' + percentage + '%)');
-            return me.loadWsapiRecords(config_clone);
-          });
-        });
-        CA.techservices.promise.ParallelThrottle.throttle(promises, 6, me).then({
-          success: function (results) {
-            deferred.resolve(Ext.Array.flatten(results));
-          },
-          failure: function (msg) {
-            deferred.reject(msg);
-          }
-        });
-      },
-      failure: function (msg) {
-        deferred.reject(msg);
-      }
-    });
-    return deferred.promise;
-  },
-
-  getPreferenceProject: function () {
-    var app = Rally.getApp();
-
-    return app.getSetting('preferenceProjectRef');
-  },
-
-  isEditableProjectForCurrentUser: function (projectRef, scope) {
-    var app = scope || Rally.getApp(),
-      me = this;
-
-    if (this.currentUserIsAdmin(scope)) {
-      return true;
-    }
-
-    var project_oid = this._getOidFromRef(projectRef);
-    var editor_permissions = Ext.Array.filter(app.getContext().getPermissions().userPermissions, function (permission) {
-      if (permission.Role != 'Editor' && permission.Role != 'ProjectAdmin') {
-        return false;
-      }
-
-      return me._getOidFromRef(permission._ref) == project_oid;
-    });
-
-    return editor_permissions.length > 0;
-  },
-
-  getEditableProjectForCurrentUser: function () {
-    var app = Rally.getApp();
-    if (this._currentUserCanWrite()) {
-      return app.getContext().getProjectRef();
-    }
-
-    var workspace_oid = this._getOidFromRef(app.getContext().getWorkspaceRef());
-
-    var editor_permissions = Ext.Array.filter(
-      app.getContext().getPermissions().userPermissions,
-      function (permission) {
-        if (Ext.isEmpty(permission.Workspace)) {
-          return false;
-        }
-        var permission_oid = this._getOidFromRef(permission.Workspace);
-
-        if (workspace_oid != permission_oid) {
-          return false;
-        }
-
-        return permission.Role == 'Editor' || permission.Role == 'ProjectAdmin';
-      },
-      this
-    );
-
-    if (editor_permissions.length > 0) {
-      return editor_permissions[0]._ref;
-    }
-    return false;
-  },
-
-  _getOidFromRef: function (ref) {
-    var ref_array = ref.replace(/\.js$/, '').split(/\//);
-    return ref_array[ref_array.length - 1].replace(/\.js/, '');
-  },
-
-  // true if sub or workspace admin
-  currentUserIsAdmin: function (scope) {
-    var app = scope || Rally.getApp();
-
-    if (this.currentUserIsSubAdmin()) {
-      return true;
-    }
-
-    var permissions = app.getContext().getPermissions().userPermissions;
-
-    var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
-      return p.Role == 'Workspace Admin' || p.Role == 'Subscription Admin';
-    });
-
-    var current_workspace_ref = app.getContext().getWorkspace()._ref;
-    var is_workspace_admin = false;
-
-    if (workspace_admin_list.length > 0) {
-      Ext.Array.each(workspace_admin_list, function (p) {
-        if (current_workspace_ref.replace(/\.js$/, '') == p._ref.replace(/\.js$/, '')) {
-          is_workspace_admin = true;
-        }
-      });
-    }
-
-    return is_workspace_admin;
-  },
-
-  currentUserIsSubAdmin: function (scope) {
-    var app = scope || Rally.getApp();
-
-    var permissions = app.getContext().getPermissions().userPermissions;
-
-    var sub_admin_list = Ext.Array.filter(permissions, function (p) {
-      return p.Role == 'Subscription Admin';
-    });
-
-    return sub_admin_list.length > 0;
-  },
-
-  _currentUserCanWrite: function () {
-    var app = Rally.getApp();
-
-    if (app.getContext().getUser().SubscriptionAdmin) {
-      return true;
-    }
-
-    var permissions = app.getContext().getPermissions().userPermissions;
-
-    var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
-      return p.Role == 'Workspace Admin' || p.Role == 'Subscription Admin';
-    });
-
-    var current_workspace_ref = app.getContext().getWorkspace()._ref;
-    var can_unlock = false;
-
-    if (workspace_admin_list.length > 0) {
-      Ext.Array.each(workspace_admin_list, function (p) {
-        if (current_workspace_ref.replace(/\.js$/, '') == p._ref.replace(/\.js$/, '')) {
-          can_unlock = true;
-        }
-      });
-    }
-
-    return can_unlock;
-  },
-
-  _currentUserCanUnapprove: function () {
-    return this.currentUserIsAdmin();
-  },
-
-  fetchPortfolioItemTypes: function () {
-    var config = {
-      model: 'TypeDefinition',
-      fetch: ['TypePath', 'Ordinal', 'Name'],
-      filters: [{ property: 'TypePath', operator: 'contains', value: 'PortfolioItem/' }],
-      sorters: [{ property: 'Ordinal', direction: 'ASC' }]
-    };
-
-    return TSUtilities.loadWsapiRecords(config);
-  },
-
-  fetchField: function (modelName, fieldName) {
-    var deferred = Ext.create('Deft.Deferred');
-    Rally.data.ModelFactory.getModel({
-      type: modelName,
-      success: function (model) {
-        deferred.resolve(model.getField(fieldName));
-      },
-      failure: function () {
-        var error = 'Could not load schedule states';
-        deferred.reject(error);
-      }
-    });
-    return deferred.promise;
-  }
-});
-
-                /**
- * A link that pops up a version dialog box
- */
-
-Ext.define('Rally.technicalservices.InfoLink', {
-  extend: 'Rally.ui.dialog.Dialog',
-  alias: 'widget.tsinfolink',
-
-  /**
-   * @cfg {String} informationHtml
-   * Additional text to be displayed on the popup dialog (for exmaple,
-   * to add a description of the app's use or functionality)
-   */
-  informationHtml: null,
-
-  /**
-   *
-   * cfg {String} title
-   * The title for the dialog box
-   */
-  title: 'Build Information',
-
-  defaults: { padding: 5, margin: 5 },
-
-  closable: true,
-
-  draggable: true,
-
-  autoShow: true,
-
-  width: 350,
-
-  initComponent: function () {
-    var id = Ext.id(this);
-    this.title = "<span class='icon-help'> </span>" + this.title;
-    this.callParent(arguments);
-  },
-
-  _generateChecksum: function (string) {
-    var chk = 0x12345678,
-      i;
-    string = string.replace(/var CHECKSUM = .*;/, '');
-    string = string.replace(/\s/g, ''); //Remove all whitespace from the string.
-
-    for (i = 0; i < string.length; i++) {
-      chk += string.charCodeAt(i) * i;
-    }
-
-    return chk;
-  },
-
-  _checkChecksum: function (container) {
-    var deferred = Ext.create('Deft.Deferred');
-    var me = this;
-
-    Ext.Ajax.request({
-      url: document.URL,
-      params: {
-        id: 1
-      },
-      success: function (response) {
-        text = response.responseText;
-        if (CHECKSUM) {
-          if (CHECKSUM !== me._generateChecksum(text)) {
-            console.log("Checksums don't match!");
-            deferred.resolve(false);
-            return;
-          }
-        }
-        deferred.resolve(true);
-      }
-    });
-
-    return deferred.promise;
-  },
-
-  afterRender: function () {
-    var app = Rally.getApp();
-
-    if (!app.isExternal()) {
-      this._checkChecksum(app).then({
-        scope: this,
-        success: function (result) {
-          if (!result) {
-            this.addDocked({
-              xtype: 'container',
-              cls: 'build-info',
-              padding: 2,
-              html: '<span class="icon-warning"> </span>Checksums do not match'
-            });
-          }
-        },
-        failure: function (msg) {
-          console.error(msg);
-        }
-      });
-    } else {
-      this.addDocked({
-        xtype: 'container',
-        cls: 'build-info',
-        padding: 2,
-        html: '... Running externally'
-      });
-    }
-    this.callParent(arguments);
-  },
-
-  beforeRender: function () {
-    var me = this;
-    this.callParent(arguments);
-
-    if (this.informationHtml) {
-      this.addDocked({
-        xtype: 'component',
-        componentCls: 'intro-panel',
-        padding: 2,
-        html: this.informationHtml
-      });
-    }
-
-    this.addDocked({
-      xtype: 'container',
-      cls: 'build-info',
-      padding: 2,
-      html: 'This app was originally created by the Rally Technical Services Team and enhanced by Andrew McGrath.'
-    });
-
-    if (APP_BUILD_DATE) {
-      this.addDocked({
-        xtype: 'container',
-        cls: 'build-info',
-        padding: 2,
-        html: 'Build date/time: ' + APP_BUILD_DATE
-      });
-    }
-  }
-});
-
-                Ext.define('TSDateUtils', {
-  singleton: true,
-
-  getBeginningOfWeekForLocalDate: function (week_date, weekStartDay) {
-    if (Ext.isEmpty(weekStartDay)) {
-      weekStartDay = 0;
-    }
-
-    var dayInWeek = week_date.getDay();
-    if (week_date.getUTCHours() === 0) {
-      // already in UTC
-      dayInWeek = week_date.getUTCDay();
-    }
-    var delta = weekStartDay - dayInWeek;
-    if (dayInWeek < weekStartDay) {
-      delta = weekStartDay - dayInWeek - 7;
-    }
-
-    var start_of_week_here = Ext.Date.add(week_date, Ext.Date.DAY, delta);
-    return start_of_week_here;
-  },
-
-  getBeginningOfWeekISOForLocalDate: function (week_date, showShiftedTimeStamp, weekStartDay) {
-    if (Ext.isEmpty(weekStartDay)) {
-      weekStartDay = 0;
-    }
-
-    var local_beginning = TSDateUtils.getBeginningOfWeekForLocalDate(week_date, weekStartDay);
-
-    if (showShiftedTimeStamp) {
-      return Rally.util.DateTime.toIsoString(local_beginning).replace(/T.*$/, 'T00:00:00.0Z');
-    }
-
-    if (local_beginning.getUTCHours() === 0) {
-      return Rally.util.DateTime.toIsoString(local_beginning, true).replace(/T.*$/, '');
-    }
-    return Rally.util.DateTime.toIsoString(local_beginning, false).replace(/T.*$/, '');
-  },
-
-  formatShiftedDate: function (jsdate, format) {
-    var offset = jsdate.getTimezoneOffset(); // 480 is pacific, -330 is india
-
-    if (offset > 0) {
-      jsdate = Rally.util.DateTime.add(jsdate, 'minute', offset);
-    }
-
-    return Ext.util.Format.date(jsdate, format);
-  },
-
-  pretendIMeantUTC: function (jsdate, asUTC) {
-    var offset = jsdate.getTimezoneOffset();
-
-    if (asUTC) {
-      return Rally.util.DateTime.toIsoString(jsdate).replace(/T.*$/, 'T00:00:00.000Z');
-    }
-    var shiftedDate = Rally.util.DateTime.add(jsdate, 'minute', -1 * offset);
-
-    return shiftedDate;
-  },
-
-  // returns a promise, fulfills with a boolean
-  isApproved: function (week_start_iso, user_oid) {
-    var deferred = Ext.create('Deft.Deferred');
-
-    var short_iso_date = week_start_iso;
-    var key_user_oid = user_oid || Rally.getApp().getContext().getUser().ObjectID;
-
-    var key = Ext.String.format('{0}.{1}.{2}', TSUtilities.approvalKeyPrefix, short_iso_date, key_user_oid);
-
-    this._loadWeekStatusPreference(key).then({
-      success: function (preference) {
-        if (preference.length === 0) {
-          deferred.resolve(false);
-          return;
-        }
-        var value = preference[0].get('Value');
-        if (/{/.test(value)) {
-          var status_object = Ext.JSON.decode(value);
-          if (status_object.status == 'Approved') {
-            deferred.resolve(true);
-            return;
-          }
-        }
-
-        deferred.resolve(false);
-      },
-      failure: function (msg) {
-        deferred.reject(msg);
-      }
-    });
-
-    return deferred.promise;
-  },
-
-  _loadWeekStatusPreference: function (key) {
-    var config = {
-      model: 'Preference',
-      limit: 1,
-      pageSize: 1,
-      filters: [
-        { property: 'Name', operator: 'contains', value: key },
-        { property: 'Name', operator: '!contains', value: TSUtilities.archiveSuffix }
-      ],
-      fetch: ['Name', 'Value'],
-      sorters: [{ property: 'CreationDate', direction: 'DESC' }]
-    };
-
-    return TSUtilities.loadWsapiRecords(config);
-  }
-});
-
                 Ext.define('TSTimesheet', {
   extend: 'Rally.app.App',
   componentCls: 'app',
@@ -4122,7 +4118,7 @@ Ext.define('Rally.technicalservices.InfoLink', {
       weekStartsOn: 0,
       showAddMyStoriesButton: false,
       showEditTimeDetailsMenuItem: false,
-      showTaskStateFilter: true
+      showTaskStateFilter: false
     }
   },
 
@@ -4163,8 +4159,6 @@ Ext.define('Rally.technicalservices.InfoLink', {
     container.add({ xtype: 'container', itemId: 'add_button_box' });
 
     container.add({ xtype: 'container', flex: 1 });
-
-    container.add({ xtype: 'container', itemId: 'other_button_box' });
 
     var week_starts_on = this.getSetting('weekStartsOn');
 
@@ -4277,26 +4271,6 @@ Ext.define('Rally.technicalservices.InfoLink', {
     } else {
       timetable.grid.filter(null, true);
     }
-  },
-
-  _addConfigButtons: function (container) {
-    this.pickableColumns = this.time_table.getPickableColumns();
-    container.removeAll();
-
-    container.add({
-      xtype: 'tscolumnpickerbutton',
-      pickableColumns: this.pickableColumns,
-      listeners: {
-        scope: this,
-        columnschosen: function (button, columns) {
-          var timetable = this.down('tstimetable');
-          this.pickableColumns = columns;
-
-          timetable.setPickableColumns(columns);
-          this.fireEvent('columnschosen');
-        }
-      }
-    });
   },
 
   // my workproducts are stories I own and stories that have tasks I own
@@ -4444,7 +4418,8 @@ Ext.define('Rally.technicalservices.InfoLink', {
       filters: [
         { property: 'Owner.ObjectID', value: this.getContext().getUser().ObjectID },
         { property: 'Iteration.StartDate', operator: '<=', value: Rally.util.DateTime.toIsoString(this.startDate) },
-        { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) }
+        { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) },
+        { property: 'State', operator: '!=', value: 'Completed' }
       ]
     };
 
@@ -4477,7 +4452,7 @@ Ext.define('Rally.technicalservices.InfoLink', {
   _findAndAddTask: function () {
     var me = this;
     var timetable = this.down('tstimetable');
-
+    var filters = [{ property: 'State', operator: '!=', value: 'Completed' }];
     var fetch_fields = ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID'];
 
     if (timetable) {
@@ -4485,7 +4460,14 @@ Ext.define('Rally.technicalservices.InfoLink', {
         artifactTypes: ['task'],
         autoShow: true,
         multiple: true,
+        width: 1500,
         title: 'Choose Task(s)',
+        context: {
+          project: null
+        },
+        storeConfig: {
+          filters: filters
+        },
         filterableFields: [
           {
             displayName: 'Formatted ID',
@@ -4498,14 +4480,6 @@ Ext.define('Rally.technicalservices.InfoLink', {
           {
             displayName: 'WorkProduct',
             attributeName: 'WorkProduct.Name'
-          },
-          {
-            displayName: 'Release',
-            attributeName: 'Release'
-          },
-          {
-            displayName: 'Iteration',
-            attributeName: 'Iteration'
           },
           {
             displayName: 'Project',
@@ -4560,12 +4534,22 @@ Ext.define('Rally.technicalservices.InfoLink', {
   _findAndAddStory: function () {
     var me = this;
     var timetable = this.down('tstimetable');
+    var filters = Ext.create('Rally.data.QueryFilter', { property: 'ScheduleState', operator: '=', value: 'Requested' });
+    filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'Defined' });
+    filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'In-Progress' });
+    filters = filters.and({ property: 'DirectChildrenCount', operator: '=', value: 0 });
+    filters.toString();
+
     if (timetable) {
       Ext.create('Rally.technicalservices.ChooserDialog', {
         artifactTypes: ['hierarchicalrequirement', 'defect'],
         autoShow: true,
         title: 'Choose Work Product(s)',
         multiple: true,
+        width: 1500,
+        storeConfig: {
+          filters: filters
+        },
         filterableFields: [
           {
             displayName: 'Formatted ID',
@@ -4576,32 +4560,12 @@ Ext.define('Rally.technicalservices.InfoLink', {
             attributeName: 'Name'
           },
           {
-            displayName: 'Feature',
-            attributeName: 'Feature.Name'
-          },
-          {
-            displayName: 'Feature Project',
-            attributeName: 'Feature.Project.Name'
-          },
-          {
-            displayName: 'Iteration',
-            attributeName: 'Iteration'
-          },
-          {
-            displayName: 'Release',
-            attributeName: 'Release'
-          },
-          {
             displayName: 'Project',
             attributeName: 'Project.Name'
           },
           {
             displayName: 'Owner',
             attributeName: 'Owner'
-          },
-          {
-            displayName: 'State',
-            attributeName: 'ScheduleState'
           }
         ],
         columns: [
@@ -4610,8 +4574,8 @@ Ext.define('Rally.technicalservices.InfoLink', {
             dataIndex: 'FormattedID'
           },
           'Name',
-          'Iteration',
           'Release',
+          'Iteration',
           'Project',
           'Owner',
           'ScheduleState'
@@ -4670,7 +4634,6 @@ Ext.define('Rally.technicalservices.InfoLink', {
         scope: this,
         gridReady: function () {
           this._addAddButtons(this.down('#add_button_box'));
-          this._addConfigButtons(this.down('#other_button_box'));
         },
         sortchange: function (grid, dataIndex, direction) {
           this.sortedColumn = dataIndex;
@@ -4781,7 +4744,7 @@ Ext.define('Rally.technicalservices.InfoLink', {
             Rally.launchApp('TSTimesheet', {
                 name:"Rally Enhanced Timesheet",
                 parentRepos:"",
-                version:"0.1.1"
+                version:"0.1.2"
             });
 
         });

@@ -97,6 +97,7 @@ Ext.define('CA.techservices.TimeTable', {
   _updateData: function () {
     this.setLoading('Loading time...');
     var me = this;
+    me.maxRows = 48;
 
     Deft.Chain.sequence([this._loadTimeEntryItems, this._loadTimeEntryValues, this._loadTimeDetailPreferences, this._loadDefaultSettings], this).then({
       scope: this,
@@ -141,7 +142,6 @@ Ext.define('CA.techservices.TimeTable', {
     this.removeAll();
     var me = this,
       table_store = Ext.create('Rally.data.custom.Store', {
-        groupField: '__SecretKey',
         model: 'CA.techservices.timesheet.TimeRow',
         data: rows,
         pageSize: me.maxRows,
@@ -160,10 +160,6 @@ Ext.define('CA.techservices.TimeTable', {
       disableSelection: true,
       enableColumnMove: false,
       enableColumnResize: false,
-      defaultSortToRank: true,
-      //            stateful: true,
-      //    stateEvents: ['columnschosen','columnmoved','columnresize'],
-      //            stateId: 'CA.technicalservices.timesheet.Settings.2',
       features: [
         {
           ftype: 'summary',
@@ -290,30 +286,18 @@ Ext.define('CA.techservices.TimeTable', {
       me = this;
 
     columns.push({
-      dataIndex: 'DragAndDropRank',
-      text: 'Rank',
-      width: 50,
-      editor: null,
-      hidden: false,
-      menuDisabled: true,
-      renderer: function (value, meta, record, rowIndex, colIndex, gridStore, view) {
-        return me.getRankValue(record, gridStore);
-      }
-    });
-
-    columns.push({
       dataIndex: 'Project',
       text: 'Project',
       flex: 1,
       editor: null,
-      sortable: false,
+      sortable: true,
       hidden: false,
       menuDisabled: true,
       renderer: function (value, meta, record) {
-        if (Ext.isEmpty(value)) {
+        if (value < 0) {
           return '--';
         }
-        return value._refObjectName;
+        return record.get('Project').Name;
       }
     });
 
@@ -407,15 +391,15 @@ Ext.define('CA.techservices.TimeTable', {
     //     editor: null
     // });
 
-    columns.push({
-      dataIndex: 'WorkProductPriority',
-      text: 'Priority',
-      sortable: true,
-      width: 50,
-      hidden: true,
-      menuDisabled: true,
-      editor: null
-    });
+    // columns.push({
+    //   dataIndex: 'WorkProductPriority',
+    //   text: 'Priority',
+    //   sortable: true,
+    //   width: 50,
+    //   hidden: true,
+    //   menuDisabled: true,
+    //   editor: null
+    // });
 
     if (Ext.isEmpty(this.lowestLevelPIName)) {
       columns.push({
@@ -514,8 +498,24 @@ Ext.define('CA.techservices.TimeTable', {
     }
 
     columns.push({
+      dataIndex: 'Release',
+      text: 'Release',
+      width: 150,
+      editor: null,
+      sortable: false,
+      menuDisabled: true,
+      renderer: function (value, meta, record) {
+        if (Ext.isEmpty(value)) {
+          return '--';
+        }
+        return value._refObjectName;
+      }
+    });
+
+    columns.push({
       dataIndex: 'Iteration',
       text: 'Iteration',
+      width: 150,
       editor: null,
       sortable: false,
       menuDisabled: true,
@@ -611,15 +611,15 @@ Ext.define('CA.techservices.TimeTable', {
 
     columns.push(state_config);
 
-    columns.push({
-      dataIndex: 'Est',
-      text: 'Estimate',
-      sortable: true,
-      width: 50,
-      hidden: true,
-      menuDisabled: true,
-      editor: null
-    });
+    // columns.push({
+    //   dataIndex: 'Est',
+    //   text: 'Estimate',
+    //   sortable: true,
+    //   width: 50,
+    //   hidden: true,
+    //   menuDisabled: true,
+    //   editor: null
+    // });
 
     var todo_config = {
       dataIndex: 'ToDo',
@@ -808,13 +808,9 @@ Ext.define('CA.techservices.TimeTable', {
         field: Ext.create('Rally.ui.NumberField', {
           xtype: 'rallynumberfield',
           minValue: minValue,
-          maxValue: 24,
+          maxValue: 36,
           disabled: disabled,
-          selectOnFocus: true,
-          keyNavEnabled: false,
-          mouseWheelEnabled: false,
-          spinDownEnabled: false,
-          spinUpEnabled: false
+          selectOnFocus: true
         }),
         listeners: {
           complete: function (field, new_value, old_value) {
@@ -1051,6 +1047,8 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _loadTimeEntryItems: function () {
+    projectScopeUp = true;
+    projectScopeDown = true;
     var me = this;
     this.setLoading('Loading time entry items...');
 
@@ -1070,6 +1068,7 @@ Ext.define('CA.techservices.TimeTable', {
       fetch: this.time_entry_item_fetch,
       enableRankFieldParameterAutoMapping: false,
       filters: filters,
+      sorters: [{ property: 'ProjectDisplayString', direction: 'ASC' }],
       limit: me.maxRows * 2,
       pageSize: me.maxRows * 2
     };

@@ -248,7 +248,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
       labelWidth: 75,
       width: 130,
       fieldLabel: 'Adjustment:',
-      maxValue: 24,
+      maxValue: 36,
       minValue: 0
     });
 
@@ -379,7 +379,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
       fieldLabel: ' = ',
       labelSeparator: '',
       editable: false,
-      maxValue: 24,
+      maxValue: 36,
       minValue: 0,
       spinDownEnabled: false,
       spinUpEnabled: false,
