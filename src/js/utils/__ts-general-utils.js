@@ -10,12 +10,12 @@ Ext.define('TSUtilities', {
 
   loadWsapiRecords: function (config, returnOperation) {
     var deferred = Ext.create('Deft.Deferred');
-    var me = this;
 
     var default_config = {
       model: 'Defect',
       fetch: ['ObjectID']
     };
+
     Ext.create('Rally.data.wsapi.Store', Ext.Object.merge(default_config, config)).load({
       callback: function (records, operation, successful) {
         if (successful) {
@@ -30,6 +30,10 @@ Ext.define('TSUtilities', {
       }
     });
     return deferred.promise;
+  },
+
+  loadWsapiRecordsAsync(config, returnOperation) {
+    return this.wrap(this.loadWsapiRecords(config, returnOperation));
   },
 
   loadWsapiRecordsWithParallelPages: function (config, msg) {
@@ -76,9 +80,7 @@ Ext.define('TSUtilities', {
   },
 
   getPreferenceProject: function () {
-    var app = Rally.getApp();
-
-    return app.getSetting('preferenceProjectRef');
+    return Rally.getApp().getSetting('preferenceProjectRef');
   },
 
   isEditableProjectForCurrentUser: function (projectRef, scope) {
@@ -208,7 +210,17 @@ Ext.define('TSUtilities', {
     return this.currentUserIsAdmin();
   },
 
-  fetchPortfolioItemTypes: function () {
+  async currentUserIsTimeSheetAdmin() {
+    const users = await this.wrap(Ext.create(Rally.data.wsapi.RefsToRecords).convert([Rally.getApp().getContext().getUser()._ref])).catch(() => null);
+
+    if (users && users.length) {
+      return !!users[0].get('c_TimesheetAdmin');
+    }
+
+    return false;
+  },
+
+  fetchPortfolioItemTypes() {
     var config = {
       model: 'TypeDefinition',
       fetch: ['TypePath', 'Ordinal', 'Name'],
@@ -216,7 +228,7 @@ Ext.define('TSUtilities', {
       sorters: [{ property: 'Ordinal', direction: 'ASC' }]
     };
 
-    return TSUtilities.loadWsapiRecords(config);
+    return this.loadWsapiRecordsAsync(config);
   },
 
   fetchField: function (modelName, fieldName) {
@@ -232,5 +244,23 @@ Ext.define('TSUtilities', {
       }
     });
     return deferred.promise;
+  },
+
+  wrap(deferred) {
+    if (!deferred || !_.isFunction(deferred.then)) {
+      return Promise.reject(new Error('Wrap cannot process this type of data into a ECMA promise'));
+    }
+    return new Promise((resolve, reject) => {
+      deferred.then({
+        success(...args) {
+          resolve(...args);
+        },
+        failure(error) {
+          Rally.getApp().setLoading(false);
+          reject(error);
+        },
+        scope: this
+      });
+    });
   }
 });

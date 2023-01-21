@@ -2,8 +2,8 @@
 <html>
 <head>
     <title>Rally Enhanced Timesheet</title>
-    <!--  Build Date: Tue Jan 10 2023 10:42:06 GMT+0100 (Central European Standard Time) -->
-    <!--  Version: "0.1.2"-->
+    <!--  Build Date: Sat Jan 21 2023 14:08:32 GMT+0100 (Central European Standard Time) -->
+    <!--  Version: "0.1.3"-->
     <!--  Repository: "https:/github.com/am283721/rally-enhanced-timesheet"-->
     <script type="text/javascript" src="/apps/2.1/sdk-debug.js"></script>
 
@@ -21,12 +21,12 @@
 
   loadWsapiRecords: function (config, returnOperation) {
     var deferred = Ext.create('Deft.Deferred');
-    var me = this;
 
     var default_config = {
       model: 'Defect',
       fetch: ['ObjectID']
     };
+
     Ext.create('Rally.data.wsapi.Store', Ext.Object.merge(default_config, config)).load({
       callback: function (records, operation, successful) {
         if (successful) {
@@ -41,6 +41,10 @@
       }
     });
     return deferred.promise;
+  },
+
+  loadWsapiRecordsAsync(config, returnOperation) {
+    return this.wrap(this.loadWsapiRecords(config, returnOperation));
   },
 
   loadWsapiRecordsWithParallelPages: function (config, msg) {
@@ -87,9 +91,7 @@
   },
 
   getPreferenceProject: function () {
-    var app = Rally.getApp();
-
-    return app.getSetting('preferenceProjectRef');
+    return Rally.getApp().getSetting('preferenceProjectRef');
   },
 
   isEditableProjectForCurrentUser: function (projectRef, scope) {
@@ -219,7 +221,17 @@
     return this.currentUserIsAdmin();
   },
 
-  fetchPortfolioItemTypes: function () {
+  async currentUserIsTimeSheetAdmin() {
+    const users = await this.wrap(Ext.create(Rally.data.wsapi.RefsToRecords).convert([Rally.getApp().getContext().getUser()._ref])).catch(() => null);
+
+    if (users && users.length) {
+      return !!users[0].get('c_TimesheetAdmin');
+    }
+
+    return false;
+  },
+
+  fetchPortfolioItemTypes() {
     var config = {
       model: 'TypeDefinition',
       fetch: ['TypePath', 'Ordinal', 'Name'],
@@ -227,7 +239,7 @@
       sorters: [{ property: 'Ordinal', direction: 'ASC' }]
     };
 
-    return TSUtilities.loadWsapiRecords(config);
+    return this.loadWsapiRecordsAsync(config);
   },
 
   fetchField: function (modelName, fieldName) {
@@ -243,144 +255,24 @@
       }
     });
     return deferred.promise;
-  }
-});
-
-                /**
- * A link that pops up a version dialog box
- */
-
-Ext.define('Rally.technicalservices.InfoLink', {
-  extend: 'Rally.ui.dialog.Dialog',
-  alias: 'widget.tsinfolink',
-
-  /**
-   * @cfg {String} informationHtml
-   * Additional text to be displayed on the popup dialog (for exmaple,
-   * to add a description of the app's use or functionality)
-   */
-  informationHtml: null,
-
-  /**
-   *
-   * cfg {String} title
-   * The title for the dialog box
-   */
-  title: 'Build Information',
-
-  defaults: { padding: 5, margin: 5 },
-
-  closable: true,
-
-  draggable: true,
-
-  autoShow: true,
-
-  width: 350,
-
-  initComponent: function () {
-    var id = Ext.id(this);
-    this.title = "<span class='icon-help'> </span>" + this.title;
-    this.callParent(arguments);
   },
 
-  _generateChecksum: function (string) {
-    var chk = 0x12345678,
-      i;
-    string = string.replace(/var CHECKSUM = .*;/, '');
-    string = string.replace(/\s/g, ''); //Remove all whitespace from the string.
-
-    for (i = 0; i < string.length; i++) {
-      chk += string.charCodeAt(i) * i;
+  wrap(deferred) {
+    if (!deferred || !_.isFunction(deferred.then)) {
+      return Promise.reject(new Error('Wrap cannot process this type of data into a ECMA promise'));
     }
-
-    return chk;
-  },
-
-  _checkChecksum: function (container) {
-    var deferred = Ext.create('Deft.Deferred');
-    var me = this;
-
-    Ext.Ajax.request({
-      url: document.URL,
-      params: {
-        id: 1
-      },
-      success: function (response) {
-        text = response.responseText;
-        if (CHECKSUM) {
-          if (CHECKSUM !== me._generateChecksum(text)) {
-            console.log("Checksums don't match!");
-            deferred.resolve(false);
-            return;
-          }
-        }
-        deferred.resolve(true);
-      }
-    });
-
-    return deferred.promise;
-  },
-
-  afterRender: function () {
-    var app = Rally.getApp();
-
-    if (!app.isExternal()) {
-      this._checkChecksum(app).then({
-        scope: this,
-        success: function (result) {
-          if (!result) {
-            this.addDocked({
-              xtype: 'container',
-              cls: 'build-info',
-              padding: 2,
-              html: '<span class="icon-warning"> </span>Checksums do not match'
-            });
-          }
+    return new Promise((resolve, reject) => {
+      deferred.then({
+        success(...args) {
+          resolve(...args);
         },
-        failure: function (msg) {
-          console.error(msg);
-        }
+        failure(error) {
+          Rally.getApp().setLoading(false);
+          reject(error);
+        },
+        scope: this
       });
-    } else {
-      this.addDocked({
-        xtype: 'container',
-        cls: 'build-info',
-        padding: 2,
-        html: '... Running externally'
-      });
-    }
-    this.callParent(arguments);
-  },
-
-  beforeRender: function () {
-    var me = this;
-    this.callParent(arguments);
-
-    if (this.informationHtml) {
-      this.addDocked({
-        xtype: 'component',
-        componentCls: 'intro-panel',
-        padding: 2,
-        html: this.informationHtml
-      });
-    }
-
-    this.addDocked({
-      xtype: 'container',
-      cls: 'build-info',
-      padding: 2,
-      html: 'This app was originally created by the Rally Technical Services Team and enhanced by Andrew McGrath.'
     });
-
-    if (APP_BUILD_DATE) {
-      this.addDocked({
-        xtype: 'container',
-        cls: 'build-info',
-        padding: 2,
-        html: 'Build date/time: ' + APP_BUILD_DATE
-      });
-    }
   }
 });
 
@@ -514,8 +406,6 @@ Ext.define('Rally.technicalservices.InfoLink', {
   },
 
   initComponent: function () {
-    var me = this;
-
     this.callParent(arguments);
 
     this.addEvents(
@@ -530,7 +420,7 @@ Ext.define('Rally.technicalservices.InfoLink', {
     );
 
     if (this.value) {
-      this.down('rallydatefield').setValue(value);
+      this.down('rallydatefield').setValue(this.value);
     }
 
     this.down('rallydatefield').on('change', this._onDateChanged, this);
@@ -2421,7 +2311,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         });
       }
 
-      if (field == 'ToDo') {
+      if (field === 'ToDo') {
         promises.push(function () {
           return me._changeToDoValue(value);
         });
@@ -2433,13 +2323,13 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         });
       }
 
-      if (field == '_DetailBlocks') {
+      if (field === '_DetailBlocks') {
         promises.push(function () {
           return me._changeDetailPreference(value);
         });
       }
 
-      if (field == 'WorkProductState') {
+      if (field === 'WorkProductState') {
         promises.push(function () {
           return me._changeDefectStateValue(value);
         });
@@ -2450,7 +2340,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _showClosedNotification: function () {
-    Rally.ui.notify.Notifier.showWarning({ message: 'Warning: Creating time entry in a closed period – registrations will not be transferred to SAP' });
+    Rally.ui.notify.Notifier.showWarning({ message: 'Warning: Creating time entry in a closed period - registrations will not be transferred to SAP' });
     setTimeout(function () {
       Rally.ui.notify.Notifier.hide();
     }, 6000);
@@ -2461,7 +2351,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeStateValue: function (value) {
-    if (value == 'Completed') {
+    if (value === 'Completed') {
       this.set('ToDo', 0);
     }
 
@@ -2642,7 +2532,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     var value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(this.get('WeekStartDate'), this.get('WeekStart'), day_name);
 
     Ext.Array.each(time_entry_values, function (time_entry_value) {
-      if (Ext.Date.format(value_date, 'y-m-d') == Ext.Date.format(time_entry_value.get('DateVal'), 'y-m-d')) {
+      if (Ext.Date.format(value_date, 'y-m-d') === Ext.Date.format(time_entry_value.get('DateVal'), 'y-m-d')) {
         day_value = time_entry_value;
       }
     });
@@ -2720,7 +2610,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       success: function (model) {
         var tei = Ext.create(model, config);
         tei.save({
-          callback: function (result, operation) {
+          callback: function (result) {
             var records = me.get('TimeEntryItemRecords') || [];
             records.push(result);
             me.set('TimeEntryItemRecords', records);
@@ -2778,12 +2668,12 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   _changeFieldRights: function (model) {
     var fields = model.getFields();
     Ext.Array.each(fields, function (field, idx) {
-      if (field.name == 'TimeEntryItem') {
+      if (field.name === 'TimeEntryItem') {
         field.readOnly = false;
         field.persist = true;
         field.type = 'string';
       }
-      if (field.name == 'DateVal') {
+      if (field.name === 'DateVal') {
         // override field definition so that we can write to the
         // field AND pass it a string for midnight at Z instead of
         // the local timestamp
@@ -2868,7 +2758,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     var blocks = this.getTimeBlocks(day);
 
     var new_blocks = Ext.Array.filter(blocks, function (block) {
-      return block_id != block.id;
+      return block_id !== block.id;
     });
 
     block_set[day] = new_blocks;
@@ -2882,7 +2772,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     var blocks = this.getTimeBlocks(day);
     var block = null;
     Ext.Array.each(blocks, function (b) {
-      if (b.id == id) {
+      if (b.id === id) {
         block = b;
       }
     });
@@ -2903,7 +2793,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     return this.get('Pinned') || false;
   },
 
-  _dateIsPrecedingWeek: function (value_date) {
+  _dateIsPrecedingWeek: function () {
     var today = new Date();
     var week_start_date = this.get('WeekStartDate');
     if (today < week_start_date) {
@@ -2919,7 +2809,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         return true;
       }
 
-      if (today.getHours() == 12 && today.getMinutes() > 4) {
+      if (today.getHours() === 12 && today.getMinutes() > 4) {
         return true;
       }
     }
@@ -2935,7 +2825,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     }
 
     // if we're the same month, it's not the preceding month
-    if (value_date.getMonth() == today.getMonth()) {
+    if (value_date.getMonth() === today.getMonth()) {
       return false;
     }
     // if we're putting in data for the month before last, it's definitely
@@ -2952,7 +2842,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       return true;
     }
 
-    if (today.getHours() == 12 && today.getMinutes() > 5) {
+    if (today.getHours() === 12 && today.getMinutes() > 5) {
       return true;
     }
     return false;
@@ -2975,7 +2865,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
 });
 
                 Ext.override(Rally.ui.grid.plugin.Validation, {
-  _onBeforeEdit: function (editor, object, eOpts) {
+  _onBeforeEdit: function () {
     // clear this because it won't let us do the getEditor on cells
   }
 });
@@ -3028,14 +2918,10 @@ Ext.define('CA.techservices.TimeTable', {
     }
 
     this.weekStart = CA.techservices.timesheet.TimeRowUtils.getDayOfWeekFromDate(this.startDate) || 0;
-
-    console.log('start date/day', this.startDate, this.weekStart);
-
     this.callParent([this.config]);
   },
 
   initComponent: function () {
-    var me = this;
     this.callParent(arguments);
 
     this.addEvents(
@@ -3143,7 +3029,7 @@ Ext.define('CA.techservices.TimeTable', {
         }
       ],
       listeners: {
-        sortchange: function (ct, column, direction, eOpts) {
+        sortchange: function (ct, column, direction) {
           this.sortedColumn = column.dataIndex;
           this.sortDirection = direction;
           me.fireEvent('sortchange', this, column.dataIndex, direction);
@@ -3151,7 +3037,7 @@ Ext.define('CA.techservices.TimeTable', {
       },
       viewConfig: {
         listeners: {
-          itemupdate: function (row, row_index) {}
+          itemupdate: function () {}
         }
       }
     });
@@ -3170,7 +3056,7 @@ Ext.define('CA.techservices.TimeTable', {
         predicate: function () {
           return !this.record.isPinned();
         },
-        handler: function (menu, evt) {
+        handler: function (menu) {
           me._pinRecord(menu.record);
         },
         record: record
@@ -3181,7 +3067,7 @@ Ext.define('CA.techservices.TimeTable', {
         predicate: function () {
           return this.record.isPinned();
         },
-        handler: function (menu, evt) {
+        handler: function (menu) {
           me._unpinRecord(menu.record);
         },
         record: record
@@ -3190,7 +3076,7 @@ Ext.define('CA.techservices.TimeTable', {
         xtype: 'rallyrecordmenuitem',
         text: 'Clear',
         record: record,
-        handler: function (menu, evt) {
+        handler: function (menu) {
           var row = menu.record;
           if (0 < row.get('Total')) {
             Ext.MessageBox.confirm('Clear Row', 'You have hours entered for this row. Are you sure?', function (res) {
@@ -3212,7 +3098,7 @@ Ext.define('CA.techservices.TimeTable', {
         xtype: 'rallyrecordmenuitem',
         text: 'Edit Time',
         record: record,
-        handler: function (menu, evt) {
+        handler: function (menu) {
           var row = menu.record;
           me._launchTimeDetailsDialog(row);
         }
@@ -3330,11 +3216,11 @@ Ext.define('CA.techservices.TimeTable', {
       field: 'WorkProduct',
       menuDisabled: true,
 
-      getEditor: function (record, df) {
-        if (record.get('WorkProduct')._type != 'Defect') {
+      getEditor: function (record) {
+        if (record.get('WorkProduct')._type !== 'Defect') {
           return false;
         }
-        var minValue = 0;
+
         return Ext.create('Ext.grid.CellEditor', {
           field: Ext.create('Rally.ui.combobox.FieldValueComboBox', {
             xtype: 'rallyfieldvaluecombobox',
@@ -3342,7 +3228,7 @@ Ext.define('CA.techservices.TimeTable', {
             field: 'State',
             value: record.get('WorkProduct').State,
             listeners: {
-              change: function (field, new_value, old_value) {
+              change: function (field, new_value) {
                 if (Ext.isEmpty(new_value)) {
                   return;
                 }
@@ -3356,26 +3242,6 @@ Ext.define('CA.techservices.TimeTable', {
     };
 
     columns.push(d_state_config);
-
-    // columns.push({
-    //     dataIndex: 'WorkProductState',
-    //     text: 'Defect State',
-    //     sortable: true,
-    //     width: 50,
-    //     hidden: true,
-    //     menuDisabled: true,
-    //     editor: null
-    // });
-
-    // columns.push({
-    //   dataIndex: 'WorkProductPriority',
-    //   text: 'Priority',
-    //   sortable: true,
-    //   width: 50,
-    //   hidden: true,
-    //   menuDisabled: true,
-    //   editor: null
-    // });
 
     if (Ext.isEmpty(this.lowestLevelPIName)) {
       columns.push({
@@ -3480,7 +3346,7 @@ Ext.define('CA.techservices.TimeTable', {
       editor: null,
       sortable: false,
       menuDisabled: true,
-      renderer: function (value, meta, record) {
+      renderer: function (value) {
         if (Ext.isEmpty(value)) {
           return '--';
         }
@@ -3495,7 +3361,7 @@ Ext.define('CA.techservices.TimeTable', {
       editor: null,
       sortable: false,
       menuDisabled: true,
-      renderer: function (value, meta, record) {
+      renderer: function (value) {
         if (Ext.isEmpty(value)) {
           return '--';
         }
@@ -3553,11 +3419,11 @@ Ext.define('CA.techservices.TimeTable', {
       sortable: true,
       menuDisabled: true,
 
-      getEditor: function (record, df) {
+      getEditor: function (record) {
         if (Ext.isEmpty(record.get('Task'))) {
           return false;
         }
-        var minValue = 0;
+
         return Ext.create('Ext.grid.CellEditor', {
           field: Ext.create('Rally.ui.combobox.FieldValueComboBox', {
             xtype: 'rallyfieldvaluecombobox',
@@ -3565,7 +3431,7 @@ Ext.define('CA.techservices.TimeTable', {
             field: 'State',
             value: record.get('Task').State,
             listeners: {
-              change: function (field, new_value, old_value) {
+              change: function (field, new_value) {
                 if (Ext.isEmpty(new_value)) {
                   return;
                 }
@@ -3580,7 +3446,7 @@ Ext.define('CA.techservices.TimeTable', {
         if (Ext.isEmpty(record.get('Task'))) {
           return '--';
         }
-        tpl = Ext.create('Rally.ui.renderer.template.ScheduleStateTemplate', { field: me.taskState });
+        let tpl = Ext.create('Rally.ui.renderer.template.ScheduleStateTemplate', { field: me.taskState });
         return tpl.apply(record.get('Task'));
       }
     };
@@ -3607,7 +3473,7 @@ Ext.define('CA.techservices.TimeTable', {
       sortable: true,
       menuDisabled: true,
       summaryType: 'sum',
-      getEditor: function (record, df) {
+      getEditor: function (record) {
         if (Ext.isEmpty(record.get('Task'))) {
           return false;
         }
@@ -3618,7 +3484,7 @@ Ext.define('CA.techservices.TimeTable', {
             minValue: minValue,
             selectOnFocus: true,
             listeners: {
-              change: function (field, new_value, old_value) {
+              change: function (field, new_value) {
                 if (Ext.isEmpty(new_value)) {
                   field.setValue(0);
                 }
@@ -3629,7 +3495,7 @@ Ext.define('CA.techservices.TimeTable', {
           })
         });
       },
-      renderer: function (value, meta, record) {
+      renderer: function (value, meta) {
         meta.tdCls = 'ts-right-border';
         return value > 0 ? value : '';
       }
@@ -3692,7 +3558,6 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _getBaseRightColumns: function () {
-    var me = this;
     var columns = [];
 
     Ext.Array.each(
@@ -3703,7 +3568,7 @@ Ext.define('CA.techservices.TimeTable', {
       this
     );
 
-    var total_renderer = function (value, meta, record) {
+    var total_renderer = function (value, meta) {
       meta.tdCls = 'ts-total-cell';
       return value;
     };
@@ -3742,10 +3607,7 @@ Ext.define('CA.techservices.TimeTable', {
     Rally.data.PreferenceManager.update({
       user: Rally.getApp().getContext().getUser().ObjectID,
       filterByUser: true,
-      settings: settings,
-      success: function (updatedRecords, notUpdatedRecords) {
-        //yay!
-      }
+      settings: settings
     });
   },
 
@@ -3764,10 +3626,7 @@ Ext.define('CA.techservices.TimeTable', {
     Rally.data.PreferenceManager.update({
       user: Rally.getApp().getContext().getUser().ObjectID,
       filterByUser: true,
-      settings: settings,
-      success: function (updatedRecords, notUpdatedRecords) {
-        //yay!
-      }
+      settings: settings
     });
   },
 
@@ -3778,7 +3637,7 @@ Ext.define('CA.techservices.TimeTable', {
     var indexToday = today.getDay();
     var weekdays = CA.techservices.timesheet.TimeRowUtils.getOrderedDaysBasedOnWeekStart(0);
 
-    var editor_config = function (record, df) {
+    var editor_config = function (record) {
       var minValue = 0;
       return Ext.create('Ext.grid.CellEditor', {
         field: Ext.create('Rally.ui.NumberField', {
@@ -3789,7 +3648,7 @@ Ext.define('CA.techservices.TimeTable', {
           selectOnFocus: true
         }),
         listeners: {
-          complete: function (field, new_value, old_value) {
+          complete: function (field, new_value) {
             if (Ext.isEmpty(new_value)) {
               new_value = 0;
               field.setValue(new_value);
@@ -3816,13 +3675,13 @@ Ext.define('CA.techservices.TimeTable', {
       getEditor: editor_config,
       field: 'test',
       summaryType: 'sum',
-      renderer: function (value, meta, record) {
+      renderer: function (value) {
         if (value === 0) {
           return '';
         }
         return value;
       },
-      summaryRenderer: function (value, meta, record) {
+      summaryRenderer: function (value) {
         if (value === 0) {
           return '';
         }
@@ -3831,8 +3690,8 @@ Ext.define('CA.techservices.TimeTable', {
     };
 
     //Highlight today
-    if (day == weekdays[indexToday] && this.startDate < today && today < end_date) {
-      config.renderer = function (value, meta, record) {
+    if (day === weekdays[indexToday] && this.startDate < today && today < end_date) {
+      config.renderer = function (value, meta) {
         meta.tdCls = 'ts-total-cell';
         if (value === 0) {
           return '';
@@ -3841,8 +3700,8 @@ Ext.define('CA.techservices.TimeTable', {
       };
     }
 
-    if (day == 'Saturday' || day == 'Sunday') {
-      config.renderer = function (value, meta, record) {
+    if (day === 'Saturday' || day === 'Sunday') {
+      config.renderer = function (value, meta) {
         meta.tdCls = 'ts-weekend-cell';
         if (value === 0) {
           return '';
@@ -3934,8 +3793,7 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   addRowForItem: function (item) {
-    var me = this,
-      rows = this.rows;
+    var me = this;
 
     if (this._hasRowForItem(item)) {
       return;
@@ -3958,7 +3816,7 @@ Ext.define('CA.techservices.TimeTable', {
       config.Project = item.get('Project');
     }
 
-    if (item_type == 'task') {
+    if (item_type === 'task') {
       config.Task = { _ref: item.get('_ref') };
       config.WorkProduct = { _ref: item.get('WorkProduct')._ref };
     }
@@ -3969,7 +3827,7 @@ Ext.define('CA.techservices.TimeTable', {
         var tei = Ext.create(model, config);
         tei.save({
           fetch: me.time_entry_item_fetch,
-          callback: function (result, operation) {
+          callback: function (result) {
             var row = Ext.create('CA.techservices.timesheet.TimeRow', {
               WeekStartDate: me.startDate,
               TimeEntryItemRecords: [result],
@@ -3994,19 +3852,18 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _hasRowForItem: function (item) {
-    var me = this,
-      rows = this.rows,
-      hasRow = false,
-      item_type = item.get('_type');
+    let rows = this.rows;
+    let hasRow = false;
+    let item_type = item.get('_type');
 
     Ext.Array.each(rows, function (row) {
       if (row) {
-        if (item_type == 'task') {
-          if (row.get('Task') && row.get('Task')._ref == item.get('_ref')) {
+        if (item_type === 'task') {
+          if (row.get('Task') && row.get('Task')._ref === item.get('_ref')) {
             hasRow = true;
           }
         } else {
-          if (Ext.isEmpty(row.get('Task')) && row.get('WorkProduct') && row.get('WorkProduct')._ref == item.get('_ref')) {
+          if (Ext.isEmpty(row.get('Task')) && row.get('WorkProduct') && row.get('WorkProduct')._ref === item.get('_ref')) {
             hasRow = true;
           }
         }
@@ -4023,9 +3880,6 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _loadTimeEntryItems: function () {
-    projectScopeUp = true;
-    projectScopeDown = true;
-    var me = this;
     this.setLoading('Loading time entry items...');
 
     var filters = [{ property: 'User.ObjectID', value: this.timesheetUser.ObjectID }];
@@ -4045,8 +3899,8 @@ Ext.define('CA.techservices.TimeTable', {
       enableRankFieldParameterAutoMapping: false,
       filters: filters,
       sorters: [{ property: 'ProjectDisplayString', direction: 'ASC' }],
-      limit: me.maxRows * 2,
-      pageSize: me.maxRows * 2
+      limit: this.maxRows * 2,
+      pageSize: this.maxRows * 2
     };
 
     return TSUtilities.loadWsapiRecords(config);
@@ -4122,32 +3976,14 @@ Ext.define('CA.techservices.TimeTable', {
     }
   },
 
-  getState: function () {
-    var me = this,
-      state = null;
-
-    state = {
-      pickableColumns: this.pickableColumns,
-      sortedColumn: this.sortedColumn,
-      sortDirection: this.sortDirection
-    };
-    this.sortedColumn = state.sortedColumn;
-    this.sortDirection = state.sortDirection;
-    this.state = state;
-    return state;
-  },
-
-  launch: function () {
-    TSUtilities.fetchPortfolioItemTypes().then({
-      success: function (types) {
-        this.portfolioItemTypes = types;
-        this._addSelectors(this.down('#selector_box'));
-      },
-      failure: function (msg) {
-        Ext.Msg.alert('Problem Initiating TimeSheet App', msg);
-      },
-      scope: this
-    });
+  async launch() {
+    try {
+      this.isTimeSheetAdmin = await TSUtilities.currentUserIsTimeSheetAdmin();
+      this.portfolioItemTypes = await TSUtilities.fetchPortfolioItemTypes();
+      this._addSelectors(this.down('#selector_box'));
+    } catch (e) {
+      this.showError(e, 'Problem Initiating TimeSheet App');
+    }
   },
 
   _getLowestLevelPIName: function () {
@@ -4158,9 +3994,28 @@ Ext.define('CA.techservices.TimeTable', {
     container.removeAll();
     container.add({ xtype: 'container', itemId: 'add_button_box' });
 
-    container.add({ xtype: 'container', flex: 1 });
-
+    const adminContainer = container.add({ xtype: 'container', flex: 1, layout: { type: 'hbox', align: 'middle', pack: 'center' } });
     var week_starts_on = this.getSetting('weekStartsOn');
+
+    if (this.isTimeSheetAdmin) {
+      adminContainer.add({
+        xtype: 'rallyusersearchcombobox',
+        includeWorkspaceUsers: true,
+        context: this.getContext(),
+        fieldLabel: 'Select user',
+        labelWidth: 65,
+        width: 275,
+        itemId: 'userCombo',
+        id: 'userCombo',
+        margin: '0 10 0 10',
+        listeners: {
+          change() {
+            this.updateData();
+          },
+          scope: this
+        }
+      });
+    }
 
     container
       .add({
@@ -4207,7 +4062,6 @@ Ext.define('CA.techservices.TimeTable', {
         xtype: 'rallybutton',
         text: '+ my <span class="icon-story"> </span>',
         toolTipText: 'Add my stories and stories with my tasks',
-        // padding: 2,
         disabled: false,
         listeners: {
           scope: this,
@@ -4275,8 +4129,8 @@ Ext.define('CA.techservices.TimeTable', {
 
   // my workproducts are stories I own and stories that have tasks I own
   _addCurrentStories: function () {
-    var me = this;
     var timetable = this.down('tstimetable');
+
     if (!timetable) {
       return;
     }
@@ -4308,8 +4162,8 @@ Ext.define('CA.techservices.TimeTable', {
         var new_item_count = items.length;
         var current_count = timetable.getGrid().getStore().getTotalCount();
 
-        if (current_count + new_item_count > me.getSetting('maxRows')) {
-          Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
+        if (current_count + new_item_count > this.getSetting('maxRows')) {
+          Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + this.getSetting('maxRows') + ' lines in the time sheet.');
           this.setLoading(false);
         } else {
           Ext.Array.each(items, function (item) {
@@ -4352,7 +4206,7 @@ Ext.define('CA.techservices.TimeTable', {
     this.setLoading('Finding my defaults...');
 
     Ext.Object.each(defaults, function (oid, type) {
-      if (type == false) {
+      if (!type) {
         return;
       }
 
@@ -4581,7 +4435,7 @@ Ext.define('CA.techservices.TimeTable', {
           'ScheduleState'
         ],
 
-        fetchFields: ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID', 'Release'],
+        fetchFields: ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID', 'Release', 'ReleaseDate'],
 
         listeners: {
           artifactchosen: function (dialog, selectedRecords) {
@@ -4596,7 +4450,11 @@ Ext.define('CA.techservices.TimeTable', {
               Ext.Msg.alert('Problem Adding Stories', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
             } else {
               Ext.Array.each(selectedRecords, function (selectedRecord) {
-                timetable.addRowForItem(selectedRecord);
+                if (selectedRecord.get('Release') && new Date(selectedRecord.get('Release').ReleaseDate) < new Date() && !me.isTimeSheetAdmin) {
+                  me.showError(`${selectedRecord.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
+                } else {
+                  timetable.addRowForItem(selectedRecord);
+                }
               });
             }
           },
@@ -4607,10 +4465,15 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   updateData: function () {
-    var me = this;
+    var timesheetUser;
     var timetable = this.down('tstimetable');
+
     if (!Ext.isEmpty(timetable)) {
       timetable.destroy();
+    }
+
+    if (this.down('#userCombo') && this.down('#userCombo').getRecord()) {
+      timesheetUser = this.down('#userCombo').getRecord().getData();
     }
 
     this.startDate = this.down('#date_selector').getValue();
@@ -4622,14 +4485,15 @@ Ext.define('CA.techservices.TimeTable', {
       region: 'center',
       layout: 'fit',
       margin: 15,
+      timesheetUser,
       pickableColumns: this.pickableColumns,
       sortedColumn: this.sortedColumn,
       sortDirection: this.sortDirection,
       lowestLevelPIName: this._getLowestLevelPIName(),
       startDate: this.startDate,
       editable: editable,
-      maxRows: me.getSetting('maxRows'),
-      showEditTimeDetailsMenuItem: me.getSetting('showEditTimeDetailsMenuItem'),
+      maxRows: this.getSetting('maxRows'),
+      showEditTimeDetailsMenuItem: this.getSetting('showEditTimeDetailsMenuItem'),
       listeners: {
         scope: this,
         gridReady: function () {
@@ -4638,7 +4502,7 @@ Ext.define('CA.techservices.TimeTable', {
         sortchange: function (grid, dataIndex, direction) {
           this.sortedColumn = dataIndex;
           this.sortDirection = direction;
-          me.fireEvent('sortchange', this, dataIndex, direction);
+          this.fireEvent('sortchange', this, dataIndex, direction);
         }
       }
     });
@@ -4713,30 +4577,50 @@ Ext.define('CA.techservices.TimeTable', {
     ];
   },
 
-  getOptions: function () {
-    return [
-      {
-        text: 'About...',
-        handler: this._launchInfo,
-        scope: this
-      }
-    ];
-  },
-
-  _launchInfo: function () {
-    if (this.about_dialog) {
-      this.about_dialog.destroy();
-    }
-    this.about_dialog = Ext.create('Rally.technicalservices.InfoLink', {});
+  getState: function () {
+    return {
+      pickableColumns: this.pickableColumns,
+      sortedColumn: this.sortedColumn,
+      sortDirection: this.sortDirection
+    };
   },
 
   isExternal: function () {
     return typeof this.getAppId() == 'undefined';
   },
 
-  //onSettingsUpdate:  Override
   onSettingsUpdate: function () {
     this.launch();
+  },
+
+  showError(msg, defaultMessage) {
+    Rally.ui.notify.Notifier.showError({ message: this.parseError(msg, defaultMessage) });
+  },
+
+  parseError(e, defaultMessage) {
+    defaultMessage = defaultMessage || 'An unknown error has occurred';
+
+    if (typeof e === 'string' && e.length) {
+      return e;
+    }
+    if (e.message && e.message.length) {
+      return e.message;
+    }
+    if (e.exception && e.error && e.error.errors && e.error.errors.length) {
+      if (e.error.errors[0].length) {
+        return e.error.errors[0];
+      }
+      if (e.error && e.error.response && e.error.response.status) {
+        return `${defaultMessage} (Status ${e.error.response.status})`;
+      }
+    }
+    if (e.exceptions && e.exceptions.length && e.exceptions[0].error) {
+      return e.exceptions[0].error.statusText;
+    }
+    if (e.exception && e.error && typeof e.error.statusText === 'string' && !e.error.statusText.length && e.error.status && e.error.status === 524) {
+      return 'The server request has timed out';
+    }
+    return defaultMessage;
   }
 });
 
@@ -4744,7 +4628,7 @@ Ext.define('CA.techservices.TimeTable', {
             Rally.launchApp('TSTimesheet', {
                 name:"Rally Enhanced Timesheet",
                 parentRepos:"",
-                version:"0.1.2"
+                version:"0.1.3"
             });
 
         });
@@ -4759,11 +4643,7 @@ Ext.define('CA.techservices.TimeTable', {
   border-color: white !important;
   text-decoration: none;
 }
-
-    </style>
-
-    <style type="text/css">
-        .no-border {
+.no-border {
   border-style: none;
   color: red !important;
   background-color: white !important ;
@@ -4772,11 +4652,7 @@ Ext.define('CA.techservices.TimeTable', {
   color: red !important;
   background-color: white !important ;
 }
-
-    </style>
-
-    <style type="text/css">
-        td.ts-total-cell {
+td.ts-total-cell {
   background-color: #eee !important;
 }
 .x-grid-row-summary {
@@ -4797,25 +4673,6 @@ span.red {
 td.ts-right-border {
   border-style: solid;
   border-right: thick double #aaa;
-}
-
-    </style>
-
-    <style type="text/css">
-        .tsinfolink {
-  position: absolute;
-  right: 0px;
-  width: 14px;
-  height: 14px;
-  border-radius: 7px;
-  text-align: center;
-  color: white;
-  background: #C0C0C0;
-  border-style: solid;
-  border-width: 1px;
-  margin-top: 25px;
-  margin-right: 5px;
-  cursor: pointer;
 }
 
     </style>

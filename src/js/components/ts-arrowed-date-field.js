@@ -17,8 +17,6 @@ Ext.define('TSArrowedDate', {
   },
 
   initComponent: function () {
-    var me = this;
-
     this.callParent(arguments);
 
     this.addEvents(
@@ -33,7 +31,7 @@ Ext.define('TSArrowedDate', {
     );
 
     if (this.value) {
-      this.down('rallydatefield').setValue(value);
+      this.down('rallydatefield').setValue(this.value);
     }
 
     this.down('rallydatefield').on('change', this._onDateChanged, this);

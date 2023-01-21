@@ -5,7 +5,6 @@
   "server": "https://rally1.rallydev.com",
   "javascript": [
     "src/js/utils/__ts-general-utils.js",
-    "src/js/utils/__ts-info-link.js",
     "src/js/utils/__ts-time-utils.js",
     "src/js/components/ts-arrowed-date-field.js",
     "src/js/components/ts-chooser-dialog.js",
@@ -16,6 +15,6 @@
     "src/js/components/ts-time-table.js",
     "src/js/app.js"
   ],
-  "css": ["src/style/arrow-button.css", "src/style/details.css", "src/style/timesheet.css", "src/style/app.css"],
+  "css": ["src/style/app.css"],
   "templates": "./templates"
 }

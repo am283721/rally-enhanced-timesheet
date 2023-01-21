@@ -24,32 +24,14 @@ Ext.define('TSTimesheet', {
     }
   },
 
-  getState: function () {
-    var me = this,
-      state = null;
-
-    state = {
-      pickableColumns: this.pickableColumns,
-      sortedColumn: this.sortedColumn,
-      sortDirection: this.sortDirection
-    };
-    this.sortedColumn = state.sortedColumn;
-    this.sortDirection = state.sortDirection;
-    this.state = state;
-    return state;
-  },
-
-  launch: function () {
-    TSUtilities.fetchPortfolioItemTypes().then({
-      success: function (types) {
-        this.portfolioItemTypes = types;
-        this._addSelectors(this.down('#selector_box'));
-      },
-      failure: function (msg) {
-        Ext.Msg.alert('Problem Initiating TimeSheet App', msg);
-      },
-      scope: this
-    });
+  async launch() {
+    try {
+      this.isTimeSheetAdmin = await TSUtilities.currentUserIsTimeSheetAdmin();
+      this.portfolioItemTypes = await TSUtilities.fetchPortfolioItemTypes();
+      this._addSelectors(this.down('#selector_box'));
+    } catch (e) {
+      this.showError(e, 'Problem Initiating TimeSheet App');
+    }
   },
 
   _getLowestLevelPIName: function () {
@@ -60,9 +42,28 @@ Ext.define('TSTimesheet', {
     container.removeAll();
     container.add({ xtype: 'container', itemId: 'add_button_box' });
 
-    container.add({ xtype: 'container', flex: 1 });
-
+    const adminContainer = container.add({ xtype: 'container', flex: 1, layout: { type: 'hbox', align: 'middle', pack: 'center' } });
     var week_starts_on = this.getSetting('weekStartsOn');
+
+    if (this.isTimeSheetAdmin) {
+      adminContainer.add({
+        xtype: 'rallyusersearchcombobox',
+        includeWorkspaceUsers: true,
+        context: this.getContext(),
+        fieldLabel: 'Select user',
+        labelWidth: 65,
+        width: 275,
+        itemId: 'userCombo',
+        id: 'userCombo',
+        margin: '0 10 0 10',
+        listeners: {
+          change() {
+            this.updateData();
+          },
+          scope: this
+        }
+      });
+    }
 
     container
       .add({
@@ -109,7 +110,6 @@ Ext.define('TSTimesheet', {
         xtype: 'rallybutton',
         text: '+ my <span class="icon-story"> </span>',
         toolTipText: 'Add my stories and stories with my tasks',
-        // padding: 2,
         disabled: false,
         listeners: {
           scope: this,
@@ -177,8 +177,8 @@ Ext.define('TSTimesheet', {
 
   // my workproducts are stories I own and stories that have tasks I own
   _addCurrentStories: function () {
-    var me = this;
     var timetable = this.down('tstimetable');
+
     if (!timetable) {
       return;
     }
@@ -210,8 +210,8 @@ Ext.define('TSTimesheet', {
         var new_item_count = items.length;
         var current_count = timetable.getGrid().getStore().getTotalCount();
 
-        if (current_count + new_item_count > me.getSetting('maxRows')) {
-          Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
+        if (current_count + new_item_count > this.getSetting('maxRows')) {
+          Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + this.getSetting('maxRows') + ' lines in the time sheet.');
           this.setLoading(false);
         } else {
           Ext.Array.each(items, function (item) {
@@ -254,7 +254,7 @@ Ext.define('TSTimesheet', {
     this.setLoading('Finding my defaults...');
 
     Ext.Object.each(defaults, function (oid, type) {
-      if (type == false) {
+      if (!type) {
         return;
       }
 
@@ -483,7 +483,7 @@ Ext.define('TSTimesheet', {
           'ScheduleState'
         ],
 
-        fetchFields: ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID', 'Release'],
+        fetchFields: ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID', 'Release', 'ReleaseDate'],
 
         listeners: {
           artifactchosen: function (dialog, selectedRecords) {
@@ -498,7 +498,11 @@ Ext.define('TSTimesheet', {
               Ext.Msg.alert('Problem Adding Stories', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
             } else {
               Ext.Array.each(selectedRecords, function (selectedRecord) {
-                timetable.addRowForItem(selectedRecord);
+                if (selectedRecord.get('Release') && new Date(selectedRecord.get('Release').ReleaseDate) < new Date() && !me.isTimeSheetAdmin) {
+                  me.showError(`${selectedRecord.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
+                } else {
+                  timetable.addRowForItem(selectedRecord);
+                }
               });
             }
           },
@@ -509,10 +513,15 @@ Ext.define('TSTimesheet', {
   },
 
   updateData: function () {
-    var me = this;
+    var timesheetUser;
     var timetable = this.down('tstimetable');
+
     if (!Ext.isEmpty(timetable)) {
       timetable.destroy();
+    }
+
+    if (this.down('#userCombo') && this.down('#userCombo').getRecord()) {
+      timesheetUser = this.down('#userCombo').getRecord().getData();
     }
 
     this.startDate = this.down('#date_selector').getValue();
@@ -524,14 +533,15 @@ Ext.define('TSTimesheet', {
       region: 'center',
       layout: 'fit',
       margin: 15,
+      timesheetUser,
       pickableColumns: this.pickableColumns,
       sortedColumn: this.sortedColumn,
       sortDirection: this.sortDirection,
       lowestLevelPIName: this._getLowestLevelPIName(),
       startDate: this.startDate,
       editable: editable,
-      maxRows: me.getSetting('maxRows'),
-      showEditTimeDetailsMenuItem: me.getSetting('showEditTimeDetailsMenuItem'),
+      maxRows: this.getSetting('maxRows'),
+      showEditTimeDetailsMenuItem: this.getSetting('showEditTimeDetailsMenuItem'),
       listeners: {
         scope: this,
         gridReady: function () {
@@ -540,7 +550,7 @@ Ext.define('TSTimesheet', {
         sortchange: function (grid, dataIndex, direction) {
           this.sortedColumn = dataIndex;
           this.sortDirection = direction;
-          me.fireEvent('sortchange', this, dataIndex, direction);
+          this.fireEvent('sortchange', this, dataIndex, direction);
         }
       }
     });
@@ -615,29 +625,49 @@ Ext.define('TSTimesheet', {
     ];
   },
 
-  getOptions: function () {
-    return [
-      {
-        text: 'About...',
-        handler: this._launchInfo,
-        scope: this
-      }
-    ];
-  },
-
-  _launchInfo: function () {
-    if (this.about_dialog) {
-      this.about_dialog.destroy();
-    }
-    this.about_dialog = Ext.create('Rally.technicalservices.InfoLink', {});
+  getState: function () {
+    return {
+      pickableColumns: this.pickableColumns,
+      sortedColumn: this.sortedColumn,
+      sortDirection: this.sortDirection
+    };
   },
 
   isExternal: function () {
     return typeof this.getAppId() == 'undefined';
   },
 
-  //onSettingsUpdate:  Override
   onSettingsUpdate: function () {
     this.launch();
+  },
+
+  showError(msg, defaultMessage) {
+    Rally.ui.notify.Notifier.showError({ message: this.parseError(msg, defaultMessage) });
+  },
+
+  parseError(e, defaultMessage) {
+    defaultMessage = defaultMessage || 'An unknown error has occurred';
+
+    if (typeof e === 'string' && e.length) {
+      return e;
+    }
+    if (e.message && e.message.length) {
+      return e.message;
+    }
+    if (e.exception && e.error && e.error.errors && e.error.errors.length) {
+      if (e.error.errors[0].length) {
+        return e.error.errors[0];
+      }
+      if (e.error && e.error.response && e.error.response.status) {
+        return `${defaultMessage} (Status ${e.error.response.status})`;
+      }
+    }
+    if (e.exceptions && e.exceptions.length && e.exceptions[0].error) {
+      return e.exceptions[0].error.statusText;
+    }
+    if (e.exception && e.error && typeof e.error.statusText === 'string' && !e.error.statusText.length && e.error.status && e.error.status === 524) {
+      return 'The server request has timed out';
+    }
+    return defaultMessage;
   }
 });

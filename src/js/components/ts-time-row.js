@@ -595,7 +595,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         });
       }
 
-      if (field == 'ToDo') {
+      if (field === 'ToDo') {
         promises.push(function () {
           return me._changeToDoValue(value);
         });
@@ -607,13 +607,13 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         });
       }
 
-      if (field == '_DetailBlocks') {
+      if (field === '_DetailBlocks') {
         promises.push(function () {
           return me._changeDetailPreference(value);
         });
       }
 
-      if (field == 'WorkProductState') {
+      if (field === 'WorkProductState') {
         promises.push(function () {
           return me._changeDefectStateValue(value);
         });
@@ -624,7 +624,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _showClosedNotification: function () {
-    Rally.ui.notify.Notifier.showWarning({ message: 'Warning: Creating time entry in a closed period – registrations will not be transferred to SAP' });
+    Rally.ui.notify.Notifier.showWarning({ message: 'Warning: Creating time entry in a closed period - registrations will not be transferred to SAP' });
     setTimeout(function () {
       Rally.ui.notify.Notifier.hide();
     }, 6000);
@@ -635,7 +635,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeStateValue: function (value) {
-    if (value == 'Completed') {
+    if (value === 'Completed') {
       this.set('ToDo', 0);
     }
 
@@ -816,7 +816,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     var value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(this.get('WeekStartDate'), this.get('WeekStart'), day_name);
 
     Ext.Array.each(time_entry_values, function (time_entry_value) {
-      if (Ext.Date.format(value_date, 'y-m-d') == Ext.Date.format(time_entry_value.get('DateVal'), 'y-m-d')) {
+      if (Ext.Date.format(value_date, 'y-m-d') === Ext.Date.format(time_entry_value.get('DateVal'), 'y-m-d')) {
         day_value = time_entry_value;
       }
     });
@@ -894,7 +894,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       success: function (model) {
         var tei = Ext.create(model, config);
         tei.save({
-          callback: function (result, operation) {
+          callback: function (result) {
             var records = me.get('TimeEntryItemRecords') || [];
             records.push(result);
             me.set('TimeEntryItemRecords', records);
@@ -952,12 +952,12 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   _changeFieldRights: function (model) {
     var fields = model.getFields();
     Ext.Array.each(fields, function (field, idx) {
-      if (field.name == 'TimeEntryItem') {
+      if (field.name === 'TimeEntryItem') {
         field.readOnly = false;
         field.persist = true;
         field.type = 'string';
       }
-      if (field.name == 'DateVal') {
+      if (field.name === 'DateVal') {
         // override field definition so that we can write to the
         // field AND pass it a string for midnight at Z instead of
         // the local timestamp
@@ -1042,7 +1042,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     var blocks = this.getTimeBlocks(day);
 
     var new_blocks = Ext.Array.filter(blocks, function (block) {
-      return block_id != block.id;
+      return block_id !== block.id;
     });
 
     block_set[day] = new_blocks;
@@ -1056,7 +1056,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     var blocks = this.getTimeBlocks(day);
     var block = null;
     Ext.Array.each(blocks, function (b) {
-      if (b.id == id) {
+      if (b.id === id) {
         block = b;
       }
     });
@@ -1077,7 +1077,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     return this.get('Pinned') || false;
   },
 
-  _dateIsPrecedingWeek: function (value_date) {
+  _dateIsPrecedingWeek: function () {
     var today = new Date();
     var week_start_date = this.get('WeekStartDate');
     if (today < week_start_date) {
@@ -1093,7 +1093,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         return true;
       }
 
-      if (today.getHours() == 12 && today.getMinutes() > 4) {
+      if (today.getHours() === 12 && today.getMinutes() > 4) {
         return true;
       }
     }
@@ -1109,7 +1109,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     }
 
     // if we're the same month, it's not the preceding month
-    if (value_date.getMonth() == today.getMonth()) {
+    if (value_date.getMonth() === today.getMonth()) {
       return false;
     }
     // if we're putting in data for the month before last, it's definitely
@@ -1126,7 +1126,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       return true;
     }
 
-    if (today.getHours() == 12 && today.getMinutes() > 5) {
+    if (today.getHours() === 12 && today.getMinutes() > 5) {
       return true;
     }
     return false;
