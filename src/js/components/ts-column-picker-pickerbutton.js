@@ -35,7 +35,7 @@ Ext.define('CA.technicalservices.ColumnPickerButton', {
   },
 
   _showDialog: function () {
-    var me = this;
+    let me = this;
     Ext.create('CA.technicalservices.ColumnPickerDialog', {
       autoShow: true,
       pickableColumns: this.pickableColumns,

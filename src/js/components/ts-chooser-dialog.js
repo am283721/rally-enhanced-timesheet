@@ -165,7 +165,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
           scope: this,
           userAction: 'clicked done in dialog',
           handler: function () {
-            var selectedRecords = this._getSelectedRecords();
+            let selectedRecords = this._getSelectedRecords();
             if (!this.multiple) {
               selectedRecords = selectedRecords[0];
             }
@@ -189,7 +189,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
    * @private
    */
   _buildSearchBar: function () {
-    var filterTypeComboBox = Ext.create('Ext.form.field.ComboBox', {
+    let filterTypeComboBox = Ext.create('Ext.form.field.ComboBox', {
       itemId: 'filterTypeComboBox',
       queryMode: 'local',
       store: Ext.create('Ext.data.Store', {
@@ -237,17 +237,17 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _changeSearchField: function (field_combobox) {
-    var field_name = field_combobox.getValue();
+    let field_name = field_combobox.getValue();
 
-    var search_config = {
+    let search_config = {
       itemId: 'searchTerms',
       emptyText: 'enter search terms',
       flex: 1
     };
 
-    var field = this.models[this.artifactTypes[0]].getField(field_name);
+    let field = this.models[this.artifactTypes[0]].getField(field_name);
 
-    var editor_config = {
+    let editor_config = {
       xtype: 'textfield',
       enableKeyEvents: true,
       listeners: {
@@ -287,9 +287,9 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       }
     }
 
-    var config = Ext.Object.merge(search_config, editor_config);
+    let config = Ext.Object.merge(search_config, editor_config);
 
-    var index = this.down('#searchBar').items.length - 2;
+    let index = this.down('#searchBar').items.length - 2;
     this.down('#searchTerms') && this.down('#searchTerms').destroy();
     this.down('#searchBar').insert(index, config);
   },
@@ -300,8 +300,8 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
    *
    */
   _setupComboBox: function (models) {
-    var searchBar = this.down('#searchBar');
-    var combo = Ext.create('Ext.form.field.ComboBox', {
+    let searchBar = this.down('#searchBar');
+    let combo = Ext.create('Ext.form.field.ComboBox', {
       xtype: 'combo',
       name: 'filterType',
       queryMode: 'local',
@@ -331,7 +331,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
     combo.on(
       'select',
       function (comboBox, options) {
-        var option = options[0];
+        let option = options[0];
         this.grid.reconfigureWithModel(option.get('wsapiModel'));
       },
       this
@@ -344,21 +344,21 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
    *
    */
   _buildGrid: function (model) {
-    var mode = this.multiple ? 'MULTI' : 'SINGLE';
+    let mode = this.multiple ? 'MULTI' : 'SINGLE';
     this.selectionModel = Ext.create('Rally.ui.selection.CheckboxModel', {
       mode: mode,
       allowDeselect: true
     });
 
-    var store_config = this.storeConfig;
+    let store_config = this.storeConfig;
     store_config.context = { project: Rally.getApp().getContext().getProjectRef() };
 
-    var new_fetch = Ext.Array.merge(['ObjectID'], this.fetchFields);
-    var current_fetch = store_config.fetch || [];
+    let new_fetch = Ext.Array.merge(['ObjectID'], this.fetchFields);
+    let current_fetch = store_config.fetch || [];
 
     store_config.fetch = Ext.Array.merge(new_fetch, current_fetch);
 
-    var gridConfig = Ext.Object.merge(
+    let gridConfig = Ext.Object.merge(
       {
         model: model,
         selModel: this.selectionModel,
@@ -404,9 +404,9 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
 
   _onGridLoad: function () {
     if (this.getSelectedRef()) {
-      var recordIndex = this.grid.getStore().find('_ref', this.getSelectedRef());
+      let recordIndex = this.grid.getStore().find('_ref', this.getSelectedRef());
       if (recordIndex !== -1) {
-        var record = this.grid.getStore().getAt(recordIndex);
+        let record = this.grid.getStore().getAt(recordIndex);
         this.grid.getSelectionModel().select(record);
       }
     }
@@ -424,11 +424,11 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
    * @private
    */
   _search: function () {
-    var terms = this.down('#searchTerms').getValue();
-    var filterBy = this.down('#filterTypeComboBox').getValue();
-    var filter;
+    let terms = this.down('#searchTerms').getValue();
+    let filterBy = this.down('#filterTypeComboBox').getValue();
+    let filter;
 
-    var store_config = this.grid.storeConfig;
+    let store_config = this.grid.storeConfig;
 
     store_config.context = { project: Rally.getApp().getContext().getProjectRef() };
 
@@ -436,7 +436,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       store_config.context = { project: null };
     }
 
-    var store = this.grid.getStore();
+    let store = this.grid.getStore();
     store.context = store_config.context;
 
     if (!Ext.isEmpty(terms)) {
@@ -455,7 +455,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _openSearchMenu: function (button) {
-    var menu = Ext.widget({
+    let menu = Ext.widget({
       xtype: 'rallymenu',
       items: [
         {

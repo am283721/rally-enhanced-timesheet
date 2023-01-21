@@ -74,7 +74,7 @@
         // window.parent and window.top. Catch this to ensure proper operation
         Ext.override(Rally.sdk.env.Global, {
             _getRallyEnvironment: function () {
-                var rallyEnvironment = null;
+                let rallyEnvironment = null;
 
                 try {
                     Ext.each([window.parent, window.top], function (w) {

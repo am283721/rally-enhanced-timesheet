@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Rally Enhanced Timesheet</title>
-    <!--  Build Date: Sat Jan 21 2023 14:08:32 GMT+0100 (Central European Standard Time) -->
+    <!--  Build Date: Sat Jan 21 2023 14:25:19 GMT+0100 (Central European Standard Time) -->
     <!--  Version: "0.1.3"-->
     <!--  Repository: "https:/github.com/am283721/rally-enhanced-timesheet"-->
     <script type="text/javascript" src="/apps/2.1/sdk-debug.js"></script>
@@ -20,9 +20,9 @@
   archiveSuffix: '~archived',
 
   loadWsapiRecords: function (config, returnOperation) {
-    var deferred = Ext.create('Deft.Deferred');
+    let deferred = Ext.create('Deft.Deferred');
 
-    var default_config = {
+    let default_config = {
       model: 'Defect',
       fetch: ['ObjectID']
     };
@@ -48,10 +48,10 @@
   },
 
   loadWsapiRecordsWithParallelPages: function (config, msg) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
 
-    var count_check_config = Ext.clone(config);
+    let count_check_config = Ext.clone(config);
     count_check_config.limit = 1;
     count_check_config.pageSize = 1;
     count_check_config.fetch = ['ObjectID'];
@@ -60,16 +60,16 @@
       success: function (operation) {
         config.pageSize = 200;
         config.limit = config.pageSize;
-        var total = operation.resultSet.totalRecords;
-        var page_count = Math.ceil(total / config.pageSize);
+        let total = operation.resultSet.totalRecords;
+        let page_count = Math.ceil(total / config.pageSize);
 
-        var promises = [];
+        let promises = [];
         Ext.Array.each(_.range(1, page_count + 1), function (page_index) {
-          var config_clone = Ext.clone(config);
+          let config_clone = Ext.clone(config);
           config_clone.currentPage = page_index;
           promises.push(function () {
-            var percentage = parseInt((page_index * 100) / page_count, 10);
-            var message = msg || 'Loading values';
+            let percentage = parseInt((page_index * 100) / page_count, 10);
+            let message = msg || 'Loading values';
             Rally.getApp().setLoading(message + ' (' + percentage + '%)');
             return me.loadWsapiRecords(config_clone);
           });
@@ -95,15 +95,15 @@
   },
 
   isEditableProjectForCurrentUser: function (projectRef, scope) {
-    var app = scope || Rally.getApp(),
+    let app = scope || Rally.getApp(),
       me = this;
 
     if (this.currentUserIsAdmin(scope)) {
       return true;
     }
 
-    var project_oid = this._getOidFromRef(projectRef);
-    var editor_permissions = Ext.Array.filter(app.getContext().getPermissions().userPermissions, function (permission) {
+    let project_oid = this._getOidFromRef(projectRef);
+    let editor_permissions = Ext.Array.filter(app.getContext().getPermissions().userPermissions, function (permission) {
       if (permission.Role != 'Editor' && permission.Role != 'ProjectAdmin') {
         return false;
       }
@@ -115,20 +115,20 @@
   },
 
   getEditableProjectForCurrentUser: function () {
-    var app = Rally.getApp();
+    let app = Rally.getApp();
     if (this._currentUserCanWrite()) {
       return app.getContext().getProjectRef();
     }
 
-    var workspace_oid = this._getOidFromRef(app.getContext().getWorkspaceRef());
+    let workspace_oid = this._getOidFromRef(app.getContext().getWorkspaceRef());
 
-    var editor_permissions = Ext.Array.filter(
+    let editor_permissions = Ext.Array.filter(
       app.getContext().getPermissions().userPermissions,
       function (permission) {
         if (Ext.isEmpty(permission.Workspace)) {
           return false;
         }
-        var permission_oid = this._getOidFromRef(permission.Workspace);
+        let permission_oid = this._getOidFromRef(permission.Workspace);
 
         if (workspace_oid != permission_oid) {
           return false;
@@ -146,26 +146,26 @@
   },
 
   _getOidFromRef: function (ref) {
-    var ref_array = ref.replace(/\.js$/, '').split(/\//);
+    let ref_array = ref.replace(/\.js$/, '').split(/\//);
     return ref_array[ref_array.length - 1].replace(/\.js/, '');
   },
 
   // true if sub or workspace admin
   currentUserIsAdmin: function (scope) {
-    var app = scope || Rally.getApp();
+    let app = scope || Rally.getApp();
 
     if (this.currentUserIsSubAdmin()) {
       return true;
     }
 
-    var permissions = app.getContext().getPermissions().userPermissions;
+    let permissions = app.getContext().getPermissions().userPermissions;
 
-    var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
+    let workspace_admin_list = Ext.Array.filter(permissions, function (p) {
       return p.Role == 'Workspace Admin' || p.Role == 'Subscription Admin';
     });
 
-    var current_workspace_ref = app.getContext().getWorkspace()._ref;
-    var is_workspace_admin = false;
+    let current_workspace_ref = app.getContext().getWorkspace()._ref;
+    let is_workspace_admin = false;
 
     if (workspace_admin_list.length > 0) {
       Ext.Array.each(workspace_admin_list, function (p) {
@@ -179,11 +179,11 @@
   },
 
   currentUserIsSubAdmin: function (scope) {
-    var app = scope || Rally.getApp();
+    let app = scope || Rally.getApp();
 
-    var permissions = app.getContext().getPermissions().userPermissions;
+    let permissions = app.getContext().getPermissions().userPermissions;
 
-    var sub_admin_list = Ext.Array.filter(permissions, function (p) {
+    let sub_admin_list = Ext.Array.filter(permissions, function (p) {
       return p.Role == 'Subscription Admin';
     });
 
@@ -191,20 +191,20 @@
   },
 
   _currentUserCanWrite: function () {
-    var app = Rally.getApp();
+    let app = Rally.getApp();
 
     if (app.getContext().getUser().SubscriptionAdmin) {
       return true;
     }
 
-    var permissions = app.getContext().getPermissions().userPermissions;
+    let permissions = app.getContext().getPermissions().userPermissions;
 
-    var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
+    let workspace_admin_list = Ext.Array.filter(permissions, function (p) {
       return p.Role == 'Workspace Admin' || p.Role == 'Subscription Admin';
     });
 
-    var current_workspace_ref = app.getContext().getWorkspace()._ref;
-    var can_unlock = false;
+    let current_workspace_ref = app.getContext().getWorkspace()._ref;
+    let can_unlock = false;
 
     if (workspace_admin_list.length > 0) {
       Ext.Array.each(workspace_admin_list, function (p) {
@@ -221,7 +221,7 @@
     return this.currentUserIsAdmin();
   },
 
-  async currentUserIsTimeSheetAdmin() {
+  async getCurrentUserIsTimeSheetAdmin() {
     const users = await this.wrap(Ext.create(Rally.data.wsapi.RefsToRecords).convert([Rally.getApp().getContext().getUser()._ref])).catch(() => null);
 
     if (users && users.length) {
@@ -232,7 +232,7 @@
   },
 
   fetchPortfolioItemTypes() {
-    var config = {
+    let config = {
       model: 'TypeDefinition',
       fetch: ['TypePath', 'Ordinal', 'Name'],
       filters: [{ property: 'TypePath', operator: 'contains', value: 'PortfolioItem/' }],
@@ -243,14 +243,14 @@
   },
 
   fetchField: function (modelName, fieldName) {
-    var deferred = Ext.create('Deft.Deferred');
+    let deferred = Ext.create('Deft.Deferred');
     Rally.data.ModelFactory.getModel({
       type: modelName,
       success: function (model) {
         deferred.resolve(model.getField(fieldName));
       },
       failure: function () {
-        var error = 'Could not load schedule states';
+        let error = 'Could not load schedule states';
         deferred.reject(error);
       }
     });
@@ -284,17 +284,17 @@
       weekStartDay = 0;
     }
 
-    var dayInWeek = week_date.getDay();
+    let dayInWeek = week_date.getDay();
     if (week_date.getUTCHours() === 0) {
       // already in UTC
       dayInWeek = week_date.getUTCDay();
     }
-    var delta = weekStartDay - dayInWeek;
+    let delta = weekStartDay - dayInWeek;
     if (dayInWeek < weekStartDay) {
       delta = weekStartDay - dayInWeek - 7;
     }
 
-    var start_of_week_here = Ext.Date.add(week_date, Ext.Date.DAY, delta);
+    let start_of_week_here = Ext.Date.add(week_date, Ext.Date.DAY, delta);
     return start_of_week_here;
   },
 
@@ -303,7 +303,7 @@
       weekStartDay = 0;
     }
 
-    var local_beginning = TSDateUtils.getBeginningOfWeekForLocalDate(week_date, weekStartDay);
+    let local_beginning = TSDateUtils.getBeginningOfWeekForLocalDate(week_date, weekStartDay);
 
     if (showShiftedTimeStamp) {
       return Rally.util.DateTime.toIsoString(local_beginning).replace(/T.*$/, 'T00:00:00.0Z');
@@ -316,7 +316,7 @@
   },
 
   formatShiftedDate: function (jsdate, format) {
-    var offset = jsdate.getTimezoneOffset(); // 480 is pacific, -330 is india
+    let offset = jsdate.getTimezoneOffset(); // 480 is pacific, -330 is india
 
     if (offset > 0) {
       jsdate = Rally.util.DateTime.add(jsdate, 'minute', offset);
@@ -326,24 +326,24 @@
   },
 
   pretendIMeantUTC: function (jsdate, asUTC) {
-    var offset = jsdate.getTimezoneOffset();
+    let offset = jsdate.getTimezoneOffset();
 
     if (asUTC) {
       return Rally.util.DateTime.toIsoString(jsdate).replace(/T.*$/, 'T00:00:00.000Z');
     }
-    var shiftedDate = Rally.util.DateTime.add(jsdate, 'minute', -1 * offset);
+    let shiftedDate = Rally.util.DateTime.add(jsdate, 'minute', -1 * offset);
 
     return shiftedDate;
   },
 
   // returns a promise, fulfills with a boolean
   isApproved: function (week_start_iso, user_oid) {
-    var deferred = Ext.create('Deft.Deferred');
+    let deferred = Ext.create('Deft.Deferred');
 
-    var short_iso_date = week_start_iso;
-    var key_user_oid = user_oid || Rally.getApp().getContext().getUser().ObjectID;
+    let short_iso_date = week_start_iso;
+    let key_user_oid = user_oid || Rally.getApp().getContext().getUser().ObjectID;
 
-    var key = Ext.String.format('{0}.{1}.{2}', TSUtilities.approvalKeyPrefix, short_iso_date, key_user_oid);
+    let key = Ext.String.format('{0}.{1}.{2}', TSUtilities.approvalKeyPrefix, short_iso_date, key_user_oid);
 
     this._loadWeekStatusPreference(key).then({
       success: function (preference) {
@@ -351,9 +351,9 @@
           deferred.resolve(false);
           return;
         }
-        var value = preference[0].get('Value');
+        let value = preference[0].get('Value');
         if (/{/.test(value)) {
-          var status_object = Ext.JSON.decode(value);
+          let status_object = Ext.JSON.decode(value);
           if (status_object.status == 'Approved') {
             deferred.resolve(true);
             return;
@@ -371,7 +371,7 @@
   },
 
   _loadWeekStatusPreference: function (key) {
-    var config = {
+    let config = {
       model: 'Preference',
       limit: 1,
       pageSize: 1,
@@ -441,7 +441,7 @@
   },
 
   _onPreviousButtonClicked: function () {
-    var value = this.getValue();
+    let value = this.getValue();
     if (Ext.isEmpty(value)) {
       return;
     }
@@ -450,7 +450,7 @@
   },
 
   _onNextButtonClicked: function () {
-    var value = this.getValue();
+    let value = this.getValue();
     if (Ext.isEmpty(value)) {
       return;
     }
@@ -626,7 +626,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
           scope: this,
           userAction: 'clicked done in dialog',
           handler: function () {
-            var selectedRecords = this._getSelectedRecords();
+            let selectedRecords = this._getSelectedRecords();
             if (!this.multiple) {
               selectedRecords = selectedRecords[0];
             }
@@ -650,7 +650,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
    * @private
    */
   _buildSearchBar: function () {
-    var filterTypeComboBox = Ext.create('Ext.form.field.ComboBox', {
+    let filterTypeComboBox = Ext.create('Ext.form.field.ComboBox', {
       itemId: 'filterTypeComboBox',
       queryMode: 'local',
       store: Ext.create('Ext.data.Store', {
@@ -698,17 +698,17 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _changeSearchField: function (field_combobox) {
-    var field_name = field_combobox.getValue();
+    let field_name = field_combobox.getValue();
 
-    var search_config = {
+    let search_config = {
       itemId: 'searchTerms',
       emptyText: 'enter search terms',
       flex: 1
     };
 
-    var field = this.models[this.artifactTypes[0]].getField(field_name);
+    let field = this.models[this.artifactTypes[0]].getField(field_name);
 
-    var editor_config = {
+    let editor_config = {
       xtype: 'textfield',
       enableKeyEvents: true,
       listeners: {
@@ -748,9 +748,9 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       }
     }
 
-    var config = Ext.Object.merge(search_config, editor_config);
+    let config = Ext.Object.merge(search_config, editor_config);
 
-    var index = this.down('#searchBar').items.length - 2;
+    let index = this.down('#searchBar').items.length - 2;
     this.down('#searchTerms') && this.down('#searchTerms').destroy();
     this.down('#searchBar').insert(index, config);
   },
@@ -761,8 +761,8 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
    *
    */
   _setupComboBox: function (models) {
-    var searchBar = this.down('#searchBar');
-    var combo = Ext.create('Ext.form.field.ComboBox', {
+    let searchBar = this.down('#searchBar');
+    let combo = Ext.create('Ext.form.field.ComboBox', {
       xtype: 'combo',
       name: 'filterType',
       queryMode: 'local',
@@ -792,7 +792,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
     combo.on(
       'select',
       function (comboBox, options) {
-        var option = options[0];
+        let option = options[0];
         this.grid.reconfigureWithModel(option.get('wsapiModel'));
       },
       this
@@ -805,21 +805,21 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
    *
    */
   _buildGrid: function (model) {
-    var mode = this.multiple ? 'MULTI' : 'SINGLE';
+    let mode = this.multiple ? 'MULTI' : 'SINGLE';
     this.selectionModel = Ext.create('Rally.ui.selection.CheckboxModel', {
       mode: mode,
       allowDeselect: true
     });
 
-    var store_config = this.storeConfig;
+    let store_config = this.storeConfig;
     store_config.context = { project: Rally.getApp().getContext().getProjectRef() };
 
-    var new_fetch = Ext.Array.merge(['ObjectID'], this.fetchFields);
-    var current_fetch = store_config.fetch || [];
+    let new_fetch = Ext.Array.merge(['ObjectID'], this.fetchFields);
+    let current_fetch = store_config.fetch || [];
 
     store_config.fetch = Ext.Array.merge(new_fetch, current_fetch);
 
-    var gridConfig = Ext.Object.merge(
+    let gridConfig = Ext.Object.merge(
       {
         model: model,
         selModel: this.selectionModel,
@@ -865,9 +865,9 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
 
   _onGridLoad: function () {
     if (this.getSelectedRef()) {
-      var recordIndex = this.grid.getStore().find('_ref', this.getSelectedRef());
+      let recordIndex = this.grid.getStore().find('_ref', this.getSelectedRef());
       if (recordIndex !== -1) {
-        var record = this.grid.getStore().getAt(recordIndex);
+        let record = this.grid.getStore().getAt(recordIndex);
         this.grid.getSelectionModel().select(record);
       }
     }
@@ -885,11 +885,11 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
    * @private
    */
   _search: function () {
-    var terms = this.down('#searchTerms').getValue();
-    var filterBy = this.down('#filterTypeComboBox').getValue();
-    var filter;
+    let terms = this.down('#searchTerms').getValue();
+    let filterBy = this.down('#filterTypeComboBox').getValue();
+    let filter;
 
-    var store_config = this.grid.storeConfig;
+    let store_config = this.grid.storeConfig;
 
     store_config.context = { project: Rally.getApp().getContext().getProjectRef() };
 
@@ -897,7 +897,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       store_config.context = { project: null };
     }
 
-    var store = this.grid.getStore();
+    let store = this.grid.getStore();
     store.context = store_config.context;
 
     if (!Ext.isEmpty(terms)) {
@@ -916,7 +916,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _openSearchMenu: function (button) {
-    var menu = Ext.widget({
+    let menu = Ext.widget({
       xtype: 'rallymenu',
       items: [
         {
@@ -1030,7 +1030,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
           scope: this,
           userAction: 'clicked done in dialog',
           handler: function () {
-            var selectedRecords = this.getRecordsWithSelection();
+            let selectedRecords = this.getRecordsWithSelection();
             this.fireEvent('columnschosen', this, selectedRecords);
             this.close();
           }
@@ -1048,15 +1048,15 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _buildGrid: function () {
-    var mode = this.multiple ? 'MULTI' : 'SINGLE';
+    let mode = this.multiple ? 'MULTI' : 'SINGLE';
     this.selectionModel = Ext.create('Rally.ui.selection.CheckboxModel', {
       mode: mode,
       allowDeselect: true
     });
 
-    var pickableColumns = this.pickableColumns;
+    let pickableColumns = this.pickableColumns;
 
-    var store = Ext.create('Rally.data.custom.Store', {
+    let store = Ext.create('Rally.data.custom.Store', {
       data: this.pickableColumns
     });
 
@@ -1070,7 +1070,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       store: store,
       listeners: {
         viewready: function (grid) {
-          var selectionModel = grid.getSelectionModel();
+          let selectionModel = grid.getSelectionModel();
 
           Ext.Array.each(pickableColumns, function (col, idx) {
             if (!col.hidden) {
@@ -1089,8 +1089,8 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   getRecordsWithSelection: function () {
-    var selected_items = this.grid.getSelectionModel().getSelection();
-    var selected_items_by_dataindex = {};
+    let selected_items = this.grid.getSelectionModel().getSelection();
+    let selected_items_by_dataindex = {};
     Ext.Array.each(selected_items, function (selected_item) {
       selected_items_by_dataindex[selected_item.get('text')] = selected_item.getData();
     });
@@ -1140,7 +1140,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _showDialog: function () {
-    var me = this;
+    let me = this;
     Ext.create('CA.technicalservices.ColumnPickerDialog', {
       autoShow: true,
       pickableColumns: this.pickableColumns,
@@ -1220,10 +1220,10 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _buildDays: function () {
-    var me = this,
+    let me = this,
       days = CA.techservices.timesheet.TimeRowUtils.daysInOrder;
 
-    var container = this.down('#daysContainer');
+    let container = this.down('#daysContainer');
     this.day_boxes = {};
 
     Ext.Array.each(days, function (day) {
@@ -1234,14 +1234,14 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
         tpl: '<span class="day_name">{day}</span>: <span class="day_value">{value}</day>'
       });
 
-      var value = me._getHoursForDay(day);
+      let value = me._getHoursForDay(day);
       me.day_boxes[day].update({ day: day, value: value });
     });
   },
 
   _getHoursForDay: function (day_name) {
-    var time_entry_value = this.row.getTimeEntryValue(day_name);
-    var value = 0;
+    let time_entry_value = this.row.getTimeEntryValue(day_name);
+    let value = 0;
 
     if (!Ext.isEmpty(time_entry_value)) {
       value = time_entry_value.get('Hours');
@@ -1251,7 +1251,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _buildForm: function () {
-    var me = this,
+    let me = this,
       container = this.down('#dayContainer');
 
     this._buildNavigation(container);
@@ -1268,9 +1268,9 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _buildNavigation: function (container) {
-    var me = this;
+    let me = this;
 
-    var selector_box = container.add({
+    let selector_box = container.add({
       xtype: 'container',
       layout: 'hbox'
     });
@@ -1327,11 +1327,11 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _updateDetailsPanel: function () {
-    var me = this,
+    let me = this,
       container = this.down('#detailsPanel');
     container.removeAll();
 
-    var today_details = this.row.getTimeBlocks(CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay]);
+    let today_details = this.row.getTimeBlocks(CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay]);
 
     container.add({
       xtype: 'container',
@@ -1352,9 +1352,9 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       );
     }
 
-    var current_total = this._getHoursForDay(CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay]);
+    let current_total = this._getHoursForDay(CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay]);
 
-    var adjustment = current_total - this._getTotal();
+    let adjustment = current_total - this._getTotal();
     if (adjustment < 0) {
       adjustment = 0;
     }
@@ -1364,7 +1364,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _addAddButton: function (container) {
-    var button_container = container.add({
+    let button_container = container.add({
       xtype: 'container',
       layout: 'hbox',
       width: '100%',
@@ -1388,7 +1388,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _addDailyAdjustmentBox: function (container, adjustment) {
-    var adjustment_container = container.add({
+    let adjustment_container = container.add({
       xtype: 'container',
       layout: 'hbox',
       width: '100%',
@@ -1397,7 +1397,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
 
     adjustment_container.add({ xtype: 'container', flex: 1 });
 
-    var field = adjustment_container.add({
+    let field = adjustment_container.add({
       itemId: 'adjustment_box',
       xtype: 'rallynumberfield',
       value: adjustment,
@@ -1423,21 +1423,21 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _addTimeBlock: function (detail) {
-    var container = this.down('#time_block_container');
+    let container = this.down('#time_block_container');
 
-    var item_id = new Date().getTime();
+    let item_id = new Date().getTime();
     if (!Ext.isEmpty(detail)) {
       item_id = detail.id;
     }
 
-    var block = container.add({
+    let block = container.add({
       xtype: 'container',
       layout: 'hbox',
       itemId: item_id,
       defaults: { margin: 3 }
     });
 
-    var hours = [
+    let hours = [
       { display: '12A', value: 0 },
       { display: '1 A', value: 1 },
       { display: '2 A', value: 2 },
@@ -1464,18 +1464,18 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       { display: '11P', value: 23 }
     ];
 
-    var hour_store_start = Ext.create('Rally.data.custom.Store', {
+    let hour_store_start = Ext.create('Rally.data.custom.Store', {
       fields: ['display', 'value'],
       data: Ext.clone(hours)
     });
 
-    var hour_store_end = Ext.create('Rally.data.custom.Store', {
+    let hour_store_end = Ext.create('Rally.data.custom.Store', {
       fields: ['display', 'value'],
       data: Ext.clone(hours)
     });
 
-    var now = new Date();
-    var hour_field_start = {
+    let now = new Date();
+    let hour_field_start = {
       xtype: 'rallycombobox',
       itemId: 'start_hour',
       fieldLabel: ' ',
@@ -1489,7 +1489,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       value: now.getHours()
     };
 
-    var minute_field_start = {
+    let minute_field_start = {
       xtype: 'rallynumberfield',
       itemId: 'start_minute',
       fieldLabel: '  ',
@@ -1502,7 +1502,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       value: now.getMinutes()
     };
 
-    var hour_field_end = {
+    let hour_field_end = {
       xtype: 'rallycombobox',
       itemId: 'end_hour',
       allowNoEntry: true,
@@ -1517,7 +1517,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       labelWidth: 20
     };
 
-    var minute_field_end = {
+    let minute_field_end = {
       xtype: 'rallynumberfield',
       itemId: 'end_minute',
       fieldLabel: '  ',
@@ -1529,7 +1529,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       labelWidth: 5
     };
 
-    var total_field = {
+    let total_field = {
       xtype: 'rallynumberfield',
       itemId: 'block_total',
       fieldLabel: ' = ',
@@ -1553,7 +1553,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       minute_field_end.value = detail.end_minute;
     }
 
-    var fields = [block.add(hour_field_start), block.add(minute_field_start), block.add(hour_field_end), block.add(minute_field_end)];
+    let fields = [block.add(hour_field_start), block.add(minute_field_start), block.add(hour_field_end), block.add(minute_field_end)];
 
     block.add({ xtype: 'container', flex: 1 });
     block.add(total_field);
@@ -1609,16 +1609,16 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _setValidBlockValues: function (block) {
-    var start_hour = block.down('#start_hour').getValue();
-    var start_minute = block.down('#start_minute').getValue();
-    var end_hour = block.down('#end_hour').getValue();
-    var end_minute = block.down('#end_minute').getValue();
+    let start_hour = block.down('#start_hour').getValue();
+    let start_minute = block.down('#start_minute').getValue();
+    let end_hour = block.down('#end_hour').getValue();
+    let end_minute = block.down('#end_minute').getValue();
 
     if (Ext.isEmpty(start_hour)) {
       return;
     }
 
-    var end_store = block.down('#end_hour').getStore();
+    let end_store = block.down('#end_hour').getStore();
     end_store.clearFilter(true);
     end_store.addFilter({ property: 'value', operator: '>=', value: start_hour });
 
@@ -1632,18 +1632,18 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _updateBlockTotal: function (block) {
-    var start_hour = block.down('#start_hour').getValue();
-    var start_minute = block.down('#start_minute').getValue();
-    var end_hour = block.down('#end_hour').getValue();
-    var end_minute = block.down('#end_minute').getValue();
+    let start_hour = block.down('#start_hour').getValue();
+    let start_minute = block.down('#start_minute').getValue();
+    let end_hour = block.down('#end_hour').getValue();
+    let end_minute = block.down('#end_minute').getValue();
 
     block.down('#block_total').setValue(0);
 
-    var total = 0;
+    let total = 0;
 
     if (!Ext.isEmpty(start_hour) && !Ext.isEmpty(end_hour)) {
-      var start = new Date(1999, 1, 1, start_hour, start_minute || 0);
-      var end = new Date(1999, 1, 1, end_hour, end_minute || 0);
+      let start = new Date(1999, 1, 1, start_hour, start_minute || 0);
+      let end = new Date(1999, 1, 1, end_hour, end_minute || 0);
       total = Rally.util.DateTime.getDifference(end, start, 'minute') / 60;
     }
 
@@ -1668,13 +1668,13 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       return;
     }
 
-    var disabled = false;
+    let disabled = false;
     Ext.Array.each(this.timeBlocks, function (block) {
       if (!block.down('#block_total')) {
         return;
       }
 
-      var total = block.down('#block_total').getValue() || 0;
+      let total = block.down('#block_total').getValue() || 0;
 
       if (total <= 0) {
         disabled = true;
@@ -1685,18 +1685,18 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _getTotal: function () {
-    var total = 0;
+    let total = 0;
 
     Ext.Array.each(this.timeBlocks, function (block) {
       if (!Ext.isEmpty(block)) {
-        var value = (block.down('#block_total') && block.down('#block_total').getValue()) || 0;
+        let value = (block.down('#block_total') && block.down('#block_total').getValue()) || 0;
         total += value;
       }
     });
 
-    var adjustment_box = this.down('#adjustment_box');
+    let adjustment_box = this.down('#adjustment_box');
     if (!Ext.isEmpty(adjustment_box)) {
-      var adjustment = adjustment_box.getValue() || 0;
+      let adjustment = adjustment_box.getValue() || 0;
       total = total + adjustment;
     }
 
@@ -1704,8 +1704,8 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   _recalculateTotal: function () {
-    var total = Ext.util.Format.number(this._getTotal(), '#.##');
-    var day = CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay];
+    let total = Ext.util.Format.number(this._getTotal(), '#.##');
+    let day = CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay];
 
     this.day_boxes[day].update({ day: day, value: total });
 
@@ -1738,7 +1738,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   getDayOfWeek: function (value, record) {
-    var week_start_date = record.get('WeekStartDate');
+    let week_start_date = record.get('WeekStartDate');
     if (Ext.isEmpty(week_start_date)) {
       return 0;
     }
@@ -1750,7 +1750,7 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       return value;
     }
 
-    var teis = record.get('TimeEntryItemRecords');
+    let teis = record.get('TimeEntryItemRecords');
     if (Ext.isEmpty(teis)) {
       return value;
     }
@@ -1760,8 +1760,8 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
     }
 
     if (/\./.test(field_name)) {
-      var field_array = field_name.split('.');
-      var field = field_array.shift();
+      let field_array = field_name.split('.');
+      let field = field_array.shift();
       if (field_array.length == 1) {
         if (Ext.isEmpty(teis[0].get(field))) {
           return null;
@@ -1786,21 +1786,21 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       return value;
     }
 
-    var index = Ext.Array.indexOf(CA.techservices.timesheet.TimeRowUtils.daysInOrder, day_name);
-    var week_start_date = record.get('WeekStartDate');
+    let index = Ext.Array.indexOf(CA.techservices.timesheet.TimeRowUtils.daysInOrder, day_name);
+    let week_start_date = record.get('WeekStartDate');
 
     if (Ext.isEmpty(week_start_date)) {
       return 0;
     }
 
-    var week_end_date = Rally.util.DateTime.add(week_start_date, 'week', 1);
+    let week_end_date = Rally.util.DateTime.add(week_start_date, 'week', 1);
 
-    var time_entry_values = record.get('TimeEntryValueRecords');
+    let time_entry_values = record.get('TimeEntryValueRecords');
 
-    var day_value = 0;
+    let day_value = 0;
     Ext.Array.each(time_entry_values, function (time_entry_value) {
-      var tev_day = time_entry_value.get('DateVal').getUTCDay();
-      var tev_date = time_entry_value.get('DateVal');
+      let tev_day = time_entry_value.get('DateVal').getUTCDay();
+      let tev_date = time_entry_value.get('DateVal');
 
       if (tev_day == index && tev_date >= week_start_date && tev_date < week_end_date) {
         day_value = time_entry_value.get('Hours');
@@ -1811,9 +1811,9 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   getTotalFromDayValues: function (value, record) {
-    var total = 0;
+    let total = 0;
     Ext.Array.each(CA.techservices.timesheet.TimeRowUtils.daysInOrder, function (day) {
-      var hours = record.get(day) || 0;
+      let hours = record.get(day) || 0;
       total = 100 * hours + total;
     });
 
@@ -1825,18 +1825,18 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       return CA.techservices.timesheet.TimeRowUtils.daysInOrder;
     }
 
-    var standard_days = CA.techservices.timesheet.TimeRowUtils.daysInOrder;
+    let standard_days = CA.techservices.timesheet.TimeRowUtils.daysInOrder;
 
-    var first_days = Ext.Array.slice(standard_days, week_start_day, 7);
-    var second_days = Ext.Array.slice(standard_days, 0, week_start_day);
+    let first_days = Ext.Array.slice(standard_days, week_start_day, 7);
+    let second_days = Ext.Array.slice(standard_days, 0, week_start_day);
 
     return Ext.Array.push(first_days, second_days);
   },
 
   getValueFromDayOfWeek: function (week_start_date, week_start_day, day_name) {
-    var days_in_order = CA.techservices.timesheet.TimeRowUtils.getOrderedDaysBasedOnWeekStart(week_start_day);
+    let days_in_order = CA.techservices.timesheet.TimeRowUtils.getOrderedDaysBasedOnWeekStart(week_start_day);
 
-    var index = Ext.Array.indexOf(days_in_order, day_name);
+    let index = Ext.Array.indexOf(days_in_order, day_name);
     if (moment(week_start_date).hours() === 0) {
       return moment(week_start_date).add(index, 'days').toDate();
     }
@@ -1849,12 +1849,12 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
       return value;
     }
 
-    var pref = record.get('DetailPreference');
+    let pref = record.get('DetailPreference');
     if (Ext.isEmpty(pref)) {
       return {};
     }
 
-    var pref_value = pref.get('Value');
+    let pref_value = pref.get('Value');
 
     if (Ext.isEmpty(pref_value)) {
       return {};
@@ -1867,9 +1867,9 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   getItemOIDFromTimeEntryItem: function (record) {
-    var item_oid = -1;
-    var workproduct = record.get('WorkProduct');
-    var task = record.get('Task');
+    let item_oid = -1;
+    let workproduct = record.get('WorkProduct');
+    let task = record.get('Task');
 
     if (!Ext.isEmpty(workproduct)) {
       item_oid = workproduct.ObjectID;
@@ -1885,23 +1885,23 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   getDetailPreference: function (record) {
     return Deft.Chain.sequence([
       function () {
-        var deferred = Ext.create('Deft.Deferred');
+        let deferred = Ext.create('Deft.Deferred');
         if (!Ext.isEmpty(record.get('DetailPreference'))) {
           return [record.get('DetailPreference')];
         }
 
-        var oid = record.get('TaskOID');
+        let oid = record.get('TaskOID');
         if (oid < 0) {
           oid = record.get('WorkProductOID');
         }
-        var key_start = CA.techservices.timesheet.TimeRowUtils.getDetailPrefix(record.get('WeekStartDate'));
+        let key_start = CA.techservices.timesheet.TimeRowUtils.getDetailPrefix(record.get('WeekStartDate'));
 
-        var key = Ext.String.format('{0}.{1}', key_start, oid);
+        let key = Ext.String.format('{0}.{1}', key_start, oid);
 
         Rally.data.ModelFactory.getModel({
           type: 'Preference',
           success: function (model) {
-            var pref = Ext.create(model, {
+            let pref = Ext.create(model, {
               Name: key,
               Value: '{}',
               User: Rally.getApp().getContext().getUser()._ref,
@@ -1925,10 +1925,10 @@ Ext.define('Rally.technicalservices.ChooserDialog', {
   },
 
   loadWsapiRecords: function (config, returnOperation) {
-    var deferred = Ext.create('Deft.Deferred');
-    var me = this;
+    let deferred = Ext.create('Deft.Deferred');
+    let me = this;
 
-    var default_config = {
+    let default_config = {
       model: 'Preference',
       fetch: ['ObjectID']
     };
@@ -1979,7 +1979,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'number',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
 
         if (Ext.isEmpty(item)) {
           return -1;
@@ -1992,7 +1992,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
 
         if (Ext.isEmpty(item)) {
           return -1;
@@ -2005,7 +2005,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
 
         if (Ext.isEmpty(item)) {
           return '';
@@ -2035,7 +2035,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'number',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
 
         if (Ext.isEmpty(item)) {
           return -1;
@@ -2048,7 +2048,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
 
         if (Ext.isEmpty(item)) {
           return '';
@@ -2061,7 +2061,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
 
         if (Ext.isEmpty(item)) {
           return '';
@@ -2107,7 +2107,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'number',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
 
         if (Ext.isEmpty(item)) {
           return -1;
@@ -2120,7 +2120,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
 
         if (Ext.isEmpty(item)) {
           return '';
@@ -2133,7 +2133,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
 
         if (Ext.isEmpty(item)) {
           return '';
@@ -2194,7 +2194,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         return CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task.State') || '';
       },
       sortType: function (value) {
-        var allowed_order = ['Defined', 'In-Progress', 'Completed'];
+        let allowed_order = ['Defined', 'In-Progress', 'Completed'];
         return Ext.Array.indexOf(allowed_order, value);
       }
     },
@@ -2279,27 +2279,27 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   ],
 
   getWeekStartDates: function () {
-    var day_of_week = this.get('WeekStart');
-    var date_of_week = this.get('WeekStartDate');
+    let day_of_week = this.get('WeekStart');
+    let date_of_week = this.get('WeekStartDate');
 
     if (day_of_week === 0) {
       return [date_of_week];
     }
 
-    var date1 = Rally.util.DateTime.add(date_of_week, 'day', -1 * day_of_week);
-    var date2 = Rally.util.DateTime.add(date1, 'day', 7);
+    let date1 = Rally.util.DateTime.add(date_of_week, 'day', -1 * day_of_week);
+    let date2 = Rally.util.DateTime.add(date1, 'day', 7);
 
     return [date1, date2];
   },
 
   save: function (v) {
-    var me = this;
-    var changes = this.getChanges();
-    var promises = [];
-    // var week_start_date = this.get('WeekStartDate');
+    let me = this;
+    let changes = this.getChanges();
+    let promises = [];
+    // let week_start_date = this.get('WeekStartDate');
 
     Ext.Object.each(changes, function (field, value) {
-      var value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(me.get('WeekStartDate'), me.get('WeekStart'), field);
+      let value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(me.get('WeekStartDate'), me.get('WeekStart'), field);
       //if ( value_date > new Date() ) { Rally.ui.notify.Notifier.showWarning({message: 'Warning: Creating Time in Future', timeout: 1000});  }
 
       if (Ext.Array.contains(CA.techservices.timesheet.TimeRowUtils.daysInOrder, field)) {
@@ -2359,9 +2359,9 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeTaskFieldValue: function (field, value) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
-    var task = this.get('Task');
+    let task = this.get('Task');
 
     if (Ext.isEmpty(task)) {
       return;
@@ -2397,9 +2397,9 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeDefectFieldValue: function (field, value) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
-    var defect = this.get('WorkProduct');
+    let defect = this.get('WorkProduct');
 
     if (Ext.isEmpty(defect)) {
       return;
@@ -2431,10 +2431,10 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeDayValue: function (day, value) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
 
-    var time_entry_value = this.getTimeEntryValue(day);
+    let time_entry_value = this.getTimeEntryValue(day);
 
     // remove from cache of fields that have changed (assumes save is fine)
     delete this.modified[day];
@@ -2457,17 +2457,17 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   clearAndRemove: function () {
-    var me = this,
+    let me = this,
       promises = [];
 
     Rally.getApp().setLoading('Clearing...');
 
     Ext.Array.each(CA.techservices.timesheet.TimeRowUtils.daysInOrder, function (day_name) {
-      var time_entry_value = me.getTimeEntryValue(day_name);
+      let time_entry_value = me.getTimeEntryValue(day_name);
 
       if (!Ext.isEmpty(time_entry_value)) {
         promises.push(function () {
-          var deferred = Ext.create('Deft.Deferred');
+          let deferred = Ext.create('Deft.Deferred');
           me.set(day_name, 0);
           time_entry_value.destroy({
             callback: function (result, operation) {
@@ -2485,8 +2485,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         this.set('TimeEntryValueRecords', []);
         this.set('Total', 0);
 
-        var time_entry_items = this.get('TimeEntryItemRecords');
-        var promises = Ext.Array.map(time_entry_items, function (time_entry_item) {
+        let time_entry_items = this.get('TimeEntryItemRecords');
+        let promises = Ext.Array.map(time_entry_items, function (time_entry_item) {
           return function () {
             return me._removeTimeEntryItem(time_entry_item);
           };
@@ -2511,7 +2511,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _removeTimeEntryItem: function (time_entry_value) {
-    var deferred = Ext.create('Deft.Deferred');
+    let deferred = Ext.create('Deft.Deferred');
     time_entry_value.destroy({
       callback: function (result, operation) {
         if (operation.wasSuccessful()) {
@@ -2525,11 +2525,11 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   getTimeEntryValue: function (day_name) {
-    var index = Ext.Array.indexOf(CA.techservices.timesheet.TimeRowUtils.daysInOrder, day_name);
-    var week_start_date = this.get('WeekStartDate');
-    var time_entry_values = this.get('TimeEntryValueRecords');
-    var day_value = null;
-    var value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(this.get('WeekStartDate'), this.get('WeekStart'), day_name);
+    let index = Ext.Array.indexOf(CA.techservices.timesheet.TimeRowUtils.daysInOrder, day_name);
+    let week_start_date = this.get('WeekStartDate');
+    let time_entry_values = this.get('TimeEntryValueRecords');
+    let day_value = null;
+    let value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(this.get('WeekStartDate'), this.get('WeekStart'), day_name);
 
     Ext.Array.each(time_entry_values, function (time_entry_value) {
       if (Ext.Date.format(value_date, 'y-m-d') === Ext.Date.format(time_entry_value.get('DateVal'), 'y-m-d')) {
@@ -2541,12 +2541,12 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _createTimeEntryValue: function (day_name, value) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
-    var value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(this.get('WeekStartDate'), this.get('WeekStart'), day_name);
-    var time_entry_item = null;
+    let value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(this.get('WeekStartDate'), this.get('WeekStart'), day_name);
+    let time_entry_item = null;
     Ext.Array.each(this.get('TimeEntryItemRecords'), function (item) {
-      var delta = Rally.util.DateTime.getDifference(value_date, item.get('WeekStartDate'), 'day');
+      let delta = Rally.util.DateTime.getDifference(value_date, item.get('WeekStartDate'), 'day');
       if (value_date >= item.get('WeekStartDate') && delta < 7) {
         time_entry_item = item;
       }
@@ -2586,12 +2586,12 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   _createTimeEntryItem: function (value_date, project, workproduct, task) {
     Rally.getApp().setLoading('Creating Time Entry Item...');
 
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
 
-    var sunday_start = TSDateUtils.getBeginningOfWeekISOForLocalDate(value_date);
+    let sunday_start = TSDateUtils.getBeginningOfWeekISOForLocalDate(value_date);
 
-    var config = {
+    let config = {
       WeekStartDate: sunday_start,
       Project: { _ref: project._ref }
     };
@@ -2608,10 +2608,10 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'TimeEntryItem',
       scope: this,
       success: function (model) {
-        var tei = Ext.create(model, config);
+        let tei = Ext.create(model, config);
         tei.save({
           callback: function (result) {
-            var records = me.get('TimeEntryItemRecords') || [];
+            let records = me.get('TimeEntryItemRecords') || [];
             records.push(result);
             me.set('TimeEntryItemRecords', records);
             Rally.getApp().setLoading(false);
@@ -2624,10 +2624,10 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _createTimeEntryValueWithModel: function (day_name, value, value_date, time_entry_item) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
 
-    var date_val = TSDateUtils.formatShiftedDate(value_date, 'Y-m-d') + 'T00:00:00.000Z';
+    let date_val = TSDateUtils.formatShiftedDate(value_date, 'Y-m-d') + 'T00:00:00.000Z';
 
     Rally.data.ModelFactory.getModel({
       type: 'TimeEntryValue',
@@ -2635,7 +2635,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       success: function (model) {
         this._changeFieldRights(model);
 
-        var tev = Ext.create(model, {
+        let tev = Ext.create(model, {
           Hours: value,
           TimeEntryItem: { _ref: time_entry_item.get('_ref') },
           DateVal: date_val
@@ -2646,7 +2646,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
             if (operation.wasSuccessful()) {
               this.set(day_name, value);
 
-              var records = me.get('TimeEntryValueRecords') || [];
+              let records = me.get('TimeEntryValueRecords') || [];
               records.push(result);
               me.set('TimeEntryValueRecords', records);
 
@@ -2666,7 +2666,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeFieldRights: function (model) {
-    var fields = model.getFields();
+    let fields = model.getFields();
     Ext.Array.each(fields, function (field, idx) {
       if (field.name === 'TimeEntryItem') {
         field.readOnly = false;
@@ -2693,8 +2693,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeDetailPreference: function (value) {
-    var me = this;
-    var json_value = Ext.JSON.encode(value);
+    let me = this;
+    let json_value = Ext.JSON.encode(value);
 
     if (this.process && this.process.getState() === 'pending') {
       return;
@@ -2713,7 +2713,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         if (preferences.length === 0) {
           return;
         }
-        var preference = preferences[0];
+        let preference = preferences[0];
 
         preference.set('Value', json_value);
         preference.save();
@@ -2725,15 +2725,15 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   addTimeBlock: function (day, time_object) {
-    var block_set = this.get('_DetailBlocks');
+    let block_set = this.get('_DetailBlocks');
     if (Ext.isEmpty(block_set) && !Ext.isEmpty(this.get('DetailPreference'))) {
       block_set = Ext.JSON.decode(this.get('DetailPreference').get('Value'));
       this.set('_DetailBlocks', block_set);
     }
 
-    var blocks = this.getTimeBlocks(day);
+    let blocks = this.getTimeBlocks(day);
 
-    var block = this.getTimeBlock(day, time_object.id);
+    let block = this.getTimeBlock(day, time_object.id);
     if (Ext.isEmpty(block)) {
       blocks.push(time_object);
       //block_set[day] = blocks;
@@ -2749,15 +2749,15 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   removeTimeBlock: function (day, block_id) {
-    var block_set = this.get('_DetailBlocks');
+    let block_set = this.get('_DetailBlocks');
     if (Ext.isEmpty(block_set) && !Ext.isEmpty(this.get('DetailPreference'))) {
       block_set = Ext.JSON.decode(this.get('DetailPreference').get('Value'));
       this.set('_DetailBlocks', block_set);
     }
 
-    var blocks = this.getTimeBlocks(day);
+    let blocks = this.getTimeBlocks(day);
 
-    var new_blocks = Ext.Array.filter(blocks, function (block) {
+    let new_blocks = Ext.Array.filter(blocks, function (block) {
       return block_id !== block.id;
     });
 
@@ -2769,8 +2769,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   getTimeBlock: function (day, id) {
-    var blocks = this.getTimeBlocks(day);
-    var block = null;
+    let blocks = this.getTimeBlocks(day);
+    let block = null;
     Ext.Array.each(blocks, function (b) {
       if (b.id === id) {
         block = b;
@@ -2781,7 +2781,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   getTimeBlocks: function (day) {
-    var blocks = this.get('_DetailBlocks');
+    let blocks = this.get('_DetailBlocks');
 
     if (blocks && blocks[day]) {
       return blocks[day];
@@ -2794,8 +2794,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _dateIsPrecedingWeek: function () {
-    var today = new Date();
-    var week_start_date = this.get('WeekStartDate');
+    let today = new Date();
+    let week_start_date = this.get('WeekStartDate');
     if (today < week_start_date) {
       return false;
     }
@@ -2818,7 +2818,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _dateIsPrecedingMonth: function (value_date) {
-    var today = new Date();
+    let today = new Date();
     // if we're in next year or next month, it's not preceding month
     if (value_date.getYear() > today.getYear() || value_date.getMonth() > today.getMonth()) {
       return false;
@@ -2849,8 +2849,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   hasOpenDetails: function () {
-    var has_open = false;
-    var blocks = this.get('_DetailBlocks');
+    let has_open = false;
+    let blocks = this.get('_DetailBlocks');
 
     Ext.Object.each(blocks, function (day, day_blocks) {
       Ext.Array.each(day_blocks, function (block) {
@@ -2958,15 +2958,15 @@ Ext.define('CA.techservices.TimeTable', {
 
   _updateData: function () {
     this.setLoading('Loading time...');
-    var me = this;
+    let me = this;
     me.maxRows = 48;
 
     Deft.Chain.sequence([this._loadTimeEntryItems, this._loadTimeEntryValues, this._loadTimeDetailPreferences, this._loadDefaultSettings], this).then({
       scope: this,
       success: function (results) {
-        var time_entry_items = results[0];
-        var time_entry_values = results[1];
-        var time_detail_prefs = results[2];
+        let time_entry_items = results[0];
+        let time_entry_values = results[1];
+        let time_detail_prefs = results[2];
         this.time_entry_defaults = results[3];
 
         this.rows = this._createRows(time_entry_items, time_entry_values, time_detail_prefs);
@@ -2980,7 +2980,7 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _loadDefaultSettings: function () {
-    var deferred = Ext.create('Deft.Deferred');
+    let deferred = Ext.create('Deft.Deferred');
 
     Rally.data.PreferenceManager.load({
       filterByUser: true,
@@ -2988,9 +2988,9 @@ Ext.define('CA.techservices.TimeTable', {
 
       success: function (prefs) {
         //process prefs
-        var defaults = {};
+        let defaults = {};
         Ext.Object.each(prefs, function (key, pref) {
-          var value = Ext.JSON.decode(pref);
+          let value = Ext.JSON.decode(pref);
           Ext.apply(defaults, value);
         });
 
@@ -3002,7 +3002,7 @@ Ext.define('CA.techservices.TimeTable', {
 
   _makeGrid: function (rows) {
     this.removeAll();
-    var me = this,
+    let me = this,
       table_store = Ext.create('Rally.data.custom.Store', {
         model: 'CA.techservices.timesheet.TimeRow',
         data: rows,
@@ -3047,9 +3047,9 @@ Ext.define('CA.techservices.TimeTable', {
 
   _getRowActions: function (record) {
     //
-    var me = this;
+    let me = this;
 
-    var actions = [
+    let actions = [
       {
         xtype: 'rallyrecordmenuitem',
         text: 'Set as Default',
@@ -3077,7 +3077,7 @@ Ext.define('CA.techservices.TimeTable', {
         text: 'Clear',
         record: record,
         handler: function (menu) {
-          var row = menu.record;
+          let row = menu.record;
           if (0 < row.get('Total')) {
             Ext.MessageBox.confirm('Clear Row', 'You have hours entered for this row. Are you sure?', function (res) {
               if ('yes' === res) {
@@ -3099,7 +3099,7 @@ Ext.define('CA.techservices.TimeTable', {
         text: 'Edit Time',
         record: record,
         handler: function (menu) {
-          var row = menu.record;
+          let row = menu.record;
           me._launchTimeDetailsDialog(row);
         }
       });
@@ -3108,16 +3108,16 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   setPickableColumns: function (pickable_columns) {
-    var columns = Ext.Array.merge([], this._getBaseLeftColumns());
+    let columns = Ext.Array.merge([], this._getBaseLeftColumns());
     columns = Ext.Array.merge(columns, pickable_columns);
     columns = Ext.Array.merge(columns, this._getBaseRightColumns());
 
-    var store = this.getGrid().getStore();
+    let store = this.getGrid().getStore();
     this.getGrid().reconfigure(store, columns);
   },
 
   _getColumns: function () {
-    var columns = Ext.Array.merge([], this._getBaseLeftColumns());
+    let columns = Ext.Array.merge([], this._getBaseLeftColumns());
 
     columns = Ext.Array.merge(columns, this.getPickableColumns());
 
@@ -3127,15 +3127,15 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   getRankValue: function (record, gridStore) {
-    var store = (gridStore && gridStore.treeStore) || gridStore,
+    let store = (gridStore && gridStore.treeStore) || gridStore,
       sorters = store && store.getSorters(),
       sorter = sorters && sorters[1];
 
     if (sorter && Rally.data.Ranker.isRankField(sorter.property)) {
-      var index = store.indexOf(record);
+      let index = store.indexOf(record);
       if (index !== -1) {
-        var currentPage = store.currentPage ? store.currentPage : 1;
-        var offset = store.pageSize * (currentPage - 1);
+        let currentPage = store.currentPage ? store.currentPage : 1;
+        let offset = store.pageSize * (currentPage - 1);
 
         return sorter.direction === 'ASC' ? index + offset + 1 : store.getTotalCount() - offset - index;
       }
@@ -3144,7 +3144,7 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   getPickableColumns: function () {
-    var columns = [],
+    let columns = [],
       me = this;
 
     columns.push({
@@ -3209,7 +3209,7 @@ Ext.define('CA.techservices.TimeTable', {
       sortable: true
     });
 
-    var d_state_config = {
+    let d_state_config = {
       dataIndex: 'WorkProductState',
       text: 'Defect State',
       sortable: true,
@@ -3410,7 +3410,7 @@ Ext.define('CA.techservices.TimeTable', {
       editor: null
     });
 
-    var state_config = {
+    let state_config = {
       dataIndex: 'State',
       text: 'State',
       resizable: false,
@@ -3463,7 +3463,7 @@ Ext.define('CA.techservices.TimeTable', {
     //   editor: null
     // });
 
-    var todo_config = {
+    let todo_config = {
       dataIndex: 'ToDo',
       text: 'To Do',
       width: 50,
@@ -3477,7 +3477,7 @@ Ext.define('CA.techservices.TimeTable', {
         if (Ext.isEmpty(record.get('Task'))) {
           return false;
         }
-        var minValue = 0;
+        let minValue = 0;
         return Ext.create('Ext.grid.CellEditor', {
           field: Ext.create('Rally.ui.NumberField', {
             xtype: 'rallynumberfield',
@@ -3507,13 +3507,13 @@ Ext.define('CA.techservices.TimeTable', {
       return columns;
     }
 
-    var pickable_by_index = {};
+    let pickable_by_index = {};
     Ext.Array.each(this.pickableColumns, function (column) {
       pickable_by_index[column.dataIndex] = column;
     });
 
     return Ext.Array.map(columns, function (column) {
-      var pickable = pickable_by_index[column.dataIndex];
+      let pickable = pickable_by_index[column.dataIndex];
       if (Ext.isEmpty(pickable)) {
         return column;
       }
@@ -3528,9 +3528,9 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _getBaseLeftColumns: function () {
-    var me = this;
+    let me = this;
 
-    var columns = [
+    let columns = [
       {
         xtype: 'rallyrowactioncolumn',
         sortable: false,
@@ -3544,7 +3544,7 @@ Ext.define('CA.techservices.TimeTable', {
         width: 25,
         dataIndex: '__SecretKey',
         renderer: function (value, meta, record) {
-          var icons = '';
+          let icons = '';
 
           if (record.hasOpenDetails()) {
             icons = icons + "<span class='icon-calendar'></span>";
@@ -3558,7 +3558,7 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _getBaseRightColumns: function () {
-    var columns = [];
+    let columns = [];
 
     Ext.Array.each(
       CA.techservices.timesheet.TimeRowUtils.getOrderedDaysBasedOnWeekStart(this.weekStart),
@@ -3568,7 +3568,7 @@ Ext.define('CA.techservices.TimeTable', {
       this
     );
 
-    var total_renderer = function (value, meta) {
+    let total_renderer = function (value, meta) {
       meta.tdCls = 'ts-total-cell';
       return value;
     };
@@ -3588,18 +3588,18 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _getItemOIDFromRow: function (record) {
-    var record_item = record.get('Task') || record.get('WorkProduct');
-    var oid = record_item.ObjectID;
+    let record_item = record.get('Task') || record.get('WorkProduct');
+    let oid = record_item.ObjectID;
     return oid;
   },
 
   _unpinRecord: function (record) {
     record.set('Pinned', false);
-    var oid = this._getItemOIDFromRow(record);
-    var key = Ext.String.format('{0}.{1}', this.pinKey, oid);
+    let oid = this._getItemOIDFromRow(record);
+    let key = Ext.String.format('{0}.{1}', this.pinKey, oid);
 
-    var settings = {};
-    var value = {};
+    let settings = {};
+    let value = {};
     value[oid] = false;
 
     settings[key] = Ext.JSON.encode(value);
@@ -3613,12 +3613,12 @@ Ext.define('CA.techservices.TimeTable', {
 
   _pinRecord: function (record) {
     record.set('Pinned', true);
-    var record_item = record.get('Task') || record.get('WorkProduct');
-    var oid = this._getItemOIDFromRow(record);
-    var key = Ext.String.format('{0}.{1}', this.pinKey, oid);
+    let record_item = record.get('Task') || record.get('WorkProduct');
+    let oid = this._getItemOIDFromRow(record);
+    let key = Ext.String.format('{0}.{1}', this.pinKey, oid);
 
-    var settings = {};
-    var value = {};
+    let settings = {};
+    let value = {};
     value[oid] = record_item._type;
 
     settings[key] = Ext.JSON.encode(value);
@@ -3631,14 +3631,14 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _getColumnForDay: function (day, idx) {
-    var disabled = false;
-    var today = new Date();
-    var end_date = Ext.Date.add(this.startDate, Ext.Date.DAY, 7);
-    var indexToday = today.getDay();
-    var weekdays = CA.techservices.timesheet.TimeRowUtils.getOrderedDaysBasedOnWeekStart(0);
+    let disabled = false;
+    let today = new Date();
+    let end_date = Ext.Date.add(this.startDate, Ext.Date.DAY, 7);
+    let indexToday = today.getDay();
+    let weekdays = CA.techservices.timesheet.TimeRowUtils.getOrderedDaysBasedOnWeekStart(0);
 
-    var editor_config = function (record) {
-      var minValue = 0;
+    let editor_config = function (record) {
+      let minValue = 0;
       return Ext.create('Ext.grid.CellEditor', {
         field: Ext.create('Rally.ui.NumberField', {
           xtype: 'rallynumberfield',
@@ -3660,12 +3660,12 @@ Ext.define('CA.techservices.TimeTable', {
       });
     };
 
-    var moment_utc_start = moment(this.startDate).utc();
-    var moment_utc_days_later = moment_utc_start.add(idx, 'day').utc();
+    let moment_utc_start = moment(this.startDate).utc();
+    let moment_utc_days_later = moment_utc_start.add(idx, 'day').utc();
 
-    var header_text = Ext.String.format('{0}<br/>{1}', CA.techservices.timesheet.TimeRowUtils.dayShortNames[day], moment_utc_days_later.format('D MMM'));
+    let header_text = Ext.String.format('{0}<br/>{1}', CA.techservices.timesheet.TimeRowUtils.dayShortNames[day], moment_utc_days_later.format('D MMM'));
 
-    var config = {
+    let config = {
       dataIndex: day,
       html: header_text,
       width: 50,
@@ -3714,9 +3714,9 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _getTimeEntryItemSets: function (time_entry_items) {
-    var time_entry_item_sets = {};
+    let time_entry_item_sets = {};
     Ext.Array.each(time_entry_items, function (item) {
-      var oid = item.get('Task') && item.get('Task').ObjectID;
+      let oid = item.get('Task') && item.get('Task').ObjectID;
       if (Ext.isEmpty(oid)) {
         oid = item.get('WorkProduct') && item.get('WorkProduct').ObjectID;
       }
@@ -3734,28 +3734,28 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _createRows: function (time_entry_items, time_entry_values, time_detail_prefs) {
-    var rows = [],
+    let rows = [],
       me = this;
     // in Rally, a time row has to start on Sunday, so we'll have up to two
     // time entry items for every row if the week starts on a different day
-    var time_entry_item_sets = this._getTimeEntryItemSets(time_entry_items);
+    let time_entry_item_sets = this._getTimeEntryItemSets(time_entry_items);
 
     Ext.Array.each(time_entry_item_sets, function (item_set) {
-      var item_values = [];
+      let item_values = [];
 
       Ext.Array.each(item_set, function (time_entry_item) {
-        var oid = time_entry_item.get('ObjectID');
-        var values_for_time_entry_item = Ext.Array.filter(time_entry_values, function (time_entry_value) {
+        let oid = time_entry_item.get('ObjectID');
+        let values_for_time_entry_item = Ext.Array.filter(time_entry_values, function (time_entry_value) {
           return time_entry_value.get('TimeEntryItem').ObjectID == oid;
         });
 
         item_values = Ext.Array.push(item_values, values_for_time_entry_item);
       });
 
-      var item_oid = CA.techservices.timesheet.TimeRowUtils.getItemOIDFromTimeEntryItem(item_set[0]);
-      var detail_preference = null;
+      let item_oid = CA.techservices.timesheet.TimeRowUtils.getItemOIDFromTimeEntryItem(item_set[0]);
+      let detail_preference = null;
       Ext.Array.each(time_detail_prefs, function (pref) {
-        var name_array = pref.get('Name').split('.');
+        let name_array = pref.get('Name').split('.');
         if ('' + item_oid == name_array[name_array.length - 1]) {
           detail_preference = pref;
         }
@@ -3765,14 +3765,14 @@ Ext.define('CA.techservices.TimeTable', {
       if (!Ext.isEmpty(me.lowestLevelPIName)) {
         Ext.Object.each(item_set, function (key, item) {
           if (item.get('WorkProduct') && item.get('WorkProduct')[me.lowestLevelPIName]) {
-            var workproduct = item.get('WorkProduct');
+            let workproduct = item.get('WorkProduct');
             workproduct.PortfolioItem = item.get('WorkProduct')[me.lowestLevelPIName];
             item.set('WorkProduct', workproduct);
           }
         });
       }
 
-      var config = {
+      let config = {
         WeekStartDate: me.startDate,
         TimeEntryItemRecords: item_set,
         TimeEntryValueRecords: item_values
@@ -3785,7 +3785,7 @@ Ext.define('CA.techservices.TimeTable', {
         config.Pinned = true;
       }
 
-      var row = Ext.create('CA.techservices.timesheet.TimeRow', config);
+      let row = Ext.create('CA.techservices.timesheet.TimeRow', config);
       rows.push(row);
     });
 
@@ -3793,16 +3793,16 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   addRowForItem: function (item) {
-    var me = this;
+    let me = this;
 
     if (this._hasRowForItem(item)) {
       return;
     }
 
-    var item_type = item.get('_type');
-    var sunday_start = TSDateUtils.getBeginningOfWeekISOForLocalDate(me.startDate);
+    let item_type = item.get('_type');
+    let sunday_start = TSDateUtils.getBeginningOfWeekISOForLocalDate(me.startDate);
 
-    var config = {
+    let config = {
       WorkProduct: {
         _ref: item.get('_ref')
       },
@@ -3824,17 +3824,17 @@ Ext.define('CA.techservices.TimeTable', {
       type: 'TimeEntryItem',
       scope: this,
       success: function (model) {
-        var tei = Ext.create(model, config);
+        let tei = Ext.create(model, config);
         tei.save({
           fetch: me.time_entry_item_fetch,
           callback: function (result) {
-            var row = Ext.create('CA.techservices.timesheet.TimeRow', {
+            let row = Ext.create('CA.techservices.timesheet.TimeRow', {
               WeekStartDate: me.startDate,
               TimeEntryItemRecords: [result],
               TimeEntryValueRecords: []
             });
 
-            var item_oid = me._getItemOIDFromRow(row);
+            let item_oid = me._getItemOIDFromRow(row);
             if (me.time_entry_defaults[item_oid] && me.time_entry_defaults[item_oid] !== false) {
               row.set('Pinned', true);
             }
@@ -3882,7 +3882,7 @@ Ext.define('CA.techservices.TimeTable', {
   _loadTimeEntryItems: function () {
     this.setLoading('Loading time entry items...');
 
-    var filters = [{ property: 'User.ObjectID', value: this.timesheetUser.ObjectID }];
+    let filters = [{ property: 'User.ObjectID', value: this.timesheetUser.ObjectID }];
 
     if (this.weekStart === 0) {
       filters.push({ property: 'WeekStartDate', value: this.startDate });
@@ -3890,7 +3890,7 @@ Ext.define('CA.techservices.TimeTable', {
       filters.push({ property: 'WeekStartDate', operator: '>=', value: Rally.util.DateTime.add(this.startDate, 'day', -6) });
       filters.push({ property: 'WeekStartDate', operator: '<=', value: Rally.util.DateTime.add(this.startDate, 'day', 6) });
     }
-    var config = {
+    let config = {
       model: 'TimeEntryItem',
       context: {
         project: null
@@ -3909,7 +3909,7 @@ Ext.define('CA.techservices.TimeTable', {
   _loadTimeEntryValues: function () {
     this.setLoading('Loading time entry values...');
 
-    var filters = [{ property: 'TimeEntryItem.User.ObjectID', value: this.timesheetUser.ObjectID }];
+    let filters = [{ property: 'TimeEntryItem.User.ObjectID', value: this.timesheetUser.ObjectID }];
 
     if (this.weekStart === 0) {
       filters.push({ property: 'TimeEntryItem.WeekStartDate', value: this.startDate });
@@ -3918,7 +3918,7 @@ Ext.define('CA.techservices.TimeTable', {
       filters.push({ property: 'TimeEntryItem.WeekStartDate', operator: '<=', value: Rally.util.DateTime.add(this.startDate, 'day', 6) });
     }
 
-    var config = {
+    let config = {
       model: 'TimeEntryValue',
       context: {
         project: null
@@ -3935,9 +3935,9 @@ Ext.define('CA.techservices.TimeTable', {
   _loadTimeDetailPreferences: function () {
     this.setLoading('Loading time entry details...');
 
-    var filters = [{ property: 'Name', operator: 'contains', value: CA.techservices.timesheet.TimeRowUtils.getDetailPrefix(this.startDate) }];
+    let filters = [{ property: 'Name', operator: 'contains', value: CA.techservices.timesheet.TimeRowUtils.getDetailPrefix(this.startDate) }];
 
-    var config = {
+    let config = {
       model: 'Preference',
       fetch: ['Name', 'Value'],
       filters: filters,
@@ -3978,7 +3978,7 @@ Ext.define('CA.techservices.TimeTable', {
 
   async launch() {
     try {
-      this.isTimeSheetAdmin = await TSUtilities.currentUserIsTimeSheetAdmin();
+      this.isTimeSheetAdmin = await TSUtilities.getCurrentUserIsTimeSheetAdmin();
       this.portfolioItemTypes = await TSUtilities.fetchPortfolioItemTypes();
       this._addSelectors(this.down('#selector_box'));
     } catch (e) {
@@ -3995,9 +3995,9 @@ Ext.define('CA.techservices.TimeTable', {
     container.add({ xtype: 'container', itemId: 'add_button_box' });
 
     const adminContainer = container.add({ xtype: 'container', flex: 1, layout: { type: 'hbox', align: 'middle', pack: 'center' } });
-    var week_starts_on = this.getSetting('weekStartsOn');
+    let week_starts_on = this.getSetting('weekStartsOn');
 
-    if (this.isTimeSheetAdmin) {
+    if (this.isTimeSheetAdmin()) {
       adminContainer.add({
         xtype: 'rallyusersearchcombobox',
         includeWorkspaceUsers: true,
@@ -4029,7 +4029,7 @@ Ext.define('CA.techservices.TimeTable', {
               return;
             }
 
-            var week_start = TSDateUtils.getBeginningOfWeekForLocalDate(new_value, week_starts_on);
+            let week_start = TSDateUtils.getBeginningOfWeekForLocalDate(new_value, week_starts_on);
             if (week_start !== new_value) {
               dp.setValue(week_start);
             }
@@ -4112,9 +4112,9 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _filterState: function (stateChange) {
-    var timetable = this.down('tstimetable');
+    let timetable = this.down('tstimetable');
 
-    var stateFilter = new Ext.util.Filter({
+    let stateFilter = new Ext.util.Filter({
       filterFn: function (item) {
         return Ext.Array.contains(stateChange.value, item.get('State')) || !item.get('State');
       }
@@ -4129,7 +4129,7 @@ Ext.define('CA.techservices.TimeTable', {
 
   // my workproducts are stories I own and stories that have tasks I own
   _addCurrentStories: function () {
-    var timetable = this.down('tstimetable');
+    let timetable = this.down('tstimetable');
 
     if (!timetable) {
       return;
@@ -4137,17 +4137,17 @@ Ext.define('CA.techservices.TimeTable', {
 
     this.setLoading('Finding my current stories...');
 
-    var my_filters = Rally.data.wsapi.Filter.or([
+    let my_filters = Rally.data.wsapi.Filter.or([
       { property: 'Owner.ObjectID', value: this.getContext().getUser().ObjectID },
       { property: 'Tasks.Owner.ObjectID', value: this.getContext().getUser().ObjectID }
     ]);
 
-    var current_filters = Rally.data.wsapi.Filter.and([
+    let current_filters = Rally.data.wsapi.Filter.and([
       { property: 'Iteration.StartDate', operator: '<=', value: Rally.util.DateTime.toIsoString(this.startDate) },
       { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) }
     ]);
 
-    var config = {
+    let config = {
       model: 'HierarchicalRequirement',
       context: {
         project: null
@@ -4159,8 +4159,8 @@ Ext.define('CA.techservices.TimeTable', {
     TSUtilities.loadWsapiRecords(config).then({
       scope: this,
       success: function (items) {
-        var new_item_count = items.length;
-        var current_count = timetable.getGrid().getStore().getTotalCount();
+        let new_item_count = items.length;
+        let current_count = timetable.getGrid().getStore().getTotalCount();
 
         if (current_count + new_item_count > this.getSetting('maxRows')) {
           Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + this.getSetting('maxRows') + ' lines in the time sheet.');
@@ -4180,7 +4180,7 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _addCurrentTasksAndDefaults: function () {
-    var me = this;
+    let me = this;
 
     Deft.Chain.sequence([this._addCurrentTasks, this._addDefaults], this)
       .then({
@@ -4194,15 +4194,15 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _addDefaults: function () {
-    var timetable = this.down('tstimetable'),
+    let timetable = this.down('tstimetable'),
       me = this;
     if (!timetable) {
       return;
     }
 
-    var defaults = timetable.time_entry_defaults;
+    let defaults = timetable.time_entry_defaults;
 
-    var promises = [];
+    let promises = [];
     this.setLoading('Finding my defaults...');
 
     Ext.Object.each(defaults, function (oid, type) {
@@ -4211,9 +4211,9 @@ Ext.define('CA.techservices.TimeTable', {
       }
 
       promises.push(function () {
-        var deferred = Ext.create('Deft.Deferred');
+        let deferred = Ext.create('Deft.Deferred');
 
-        var config = {
+        let config = {
           model: type,
           context: {
             project: null
@@ -4225,8 +4225,8 @@ Ext.define('CA.techservices.TimeTable', {
         TSUtilities.loadWsapiRecords(config).then({
           scope: this,
           success: function (items) {
-            var new_item_count = items.length;
-            var current_count = timetable.getGrid().getStore().getTotalCount();
+            let new_item_count = items.length;
+            let current_count = timetable.getGrid().getStore().getTotalCount();
 
             if (current_count + new_item_count > me.getSetting('maxRows')) {
               Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
@@ -4253,17 +4253,17 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _addCurrentTasks: function () {
-    var me = this;
-    var deferred = Ext.create('Deft.Deferred');
+    let me = this;
+    let deferred = Ext.create('Deft.Deferred');
 
-    var timetable = this.down('tstimetable');
+    let timetable = this.down('tstimetable');
     if (!timetable) {
       return;
     }
 
     this.setLoading('Finding my current tasks...');
 
-    var config = {
+    let config = {
       model: 'Task',
       context: {
         project: null
@@ -4280,8 +4280,8 @@ Ext.define('CA.techservices.TimeTable', {
     TSUtilities.loadWsapiRecords(config).then({
       scope: this,
       success: function (tasks) {
-        var new_item_count = tasks.length;
-        var current_count = timetable.getGrid().getStore().getTotalCount();
+        let new_item_count = tasks.length;
+        let current_count = timetable.getGrid().getStore().getTotalCount();
 
         if (current_count + new_item_count > me.getSetting('maxRows')) {
           Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
@@ -4304,10 +4304,10 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _findAndAddTask: function () {
-    var me = this;
-    var timetable = this.down('tstimetable');
-    var filters = [{ property: 'State', operator: '!=', value: 'Completed' }];
-    var fetch_fields = ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID'];
+    let me = this;
+    let timetable = this.down('tstimetable');
+    let filters = [{ property: 'State', operator: '!=', value: 'Completed' }];
+    let fetch_fields = ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID'];
 
     if (timetable) {
       Ext.create('Rally.technicalservices.ChooserDialog', {
@@ -4368,8 +4368,8 @@ Ext.define('CA.techservices.TimeTable', {
               selectedRecords = [selectedRecords];
             }
 
-            var new_item_count = selectedRecords.length;
-            var current_count = timetable.getGrid().getStore().getTotalCount();
+            let new_item_count = selectedRecords.length;
+            let current_count = timetable.getGrid().getStore().getTotalCount();
 
             if (current_count + new_item_count > me.getSetting('maxRows')) {
               Ext.Msg.alert('Problem Adding Tasks', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
@@ -4386,9 +4386,9 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _findAndAddStory: function () {
-    var me = this;
-    var timetable = this.down('tstimetable');
-    var filters = Ext.create('Rally.data.QueryFilter', { property: 'ScheduleState', operator: '=', value: 'Requested' });
+    let me = this;
+    let timetable = this.down('tstimetable');
+    let filters = Ext.create('Rally.data.QueryFilter', { property: 'ScheduleState', operator: '=', value: 'Requested' });
     filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'Defined' });
     filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'In-Progress' });
     filters = filters.and({ property: 'DirectChildrenCount', operator: '=', value: 0 });
@@ -4443,14 +4443,14 @@ Ext.define('CA.techservices.TimeTable', {
               selectedRecords = [selectedRecords];
             }
 
-            var new_item_count = selectedRecords.length;
-            var current_count = timetable.getGrid().getStore().getTotalCount();
+            let new_item_count = selectedRecords.length;
+            let current_count = timetable.getGrid().getStore().getTotalCount();
 
             if (current_count + new_item_count > me.getSetting('maxRows')) {
               Ext.Msg.alert('Problem Adding Stories', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
             } else {
               Ext.Array.each(selectedRecords, function (selectedRecord) {
-                if (selectedRecord.get('Release') && new Date(selectedRecord.get('Release').ReleaseDate) < new Date() && !me.isTimeSheetAdmin) {
+                if (selectedRecord.get('Release') && new Date(selectedRecord.get('Release').ReleaseDate) < new Date() && !me.isTimeSheetAdmin()) {
                   me.showError(`${selectedRecord.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
                 } else {
                   timetable.addRowForItem(selectedRecord);
@@ -4465,8 +4465,8 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   updateData: function () {
-    var timesheetUser;
-    var timetable = this.down('tstimetable');
+    let timesheetUser;
+    let timetable = this.down('tstimetable');
 
     if (!Ext.isEmpty(timetable)) {
       timetable.destroy();
@@ -4478,7 +4478,7 @@ Ext.define('CA.techservices.TimeTable', {
 
     this.startDate = this.down('#date_selector').getValue();
 
-    var editable = true;
+    let editable = true;
 
     this.time_table = this.add({
       xtype: 'tstimetable',
@@ -4508,10 +4508,14 @@ Ext.define('CA.techservices.TimeTable', {
     });
   },
 
-  getSettingsFields: function () {
-    var check_box_margins = '5 0 5 0';
+  isTimeSheetAdmin() {
+    return this.isTimeSheetAdmin;
+  },
 
-    var days_of_week = [
+  getSettingsFields: function () {
+    let check_box_margins = '5 0 5 0';
+
+    let days_of_week = [
       { Name: 'Sunday', Value: 0 },
       { Name: 'Monday', Value: 1 },
       { Name: 'Tuesday', Value: 2 },

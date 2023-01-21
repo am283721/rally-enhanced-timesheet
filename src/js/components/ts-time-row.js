@@ -22,7 +22,7 @@ Ext.define('CA.techservices.timesheet.TimeRowUtils', {
   },
 
   getDayOfWeek: function (value, record) {
-    var week_start_date = record.get('WeekStartDate');
+    let week_start_date = record.get('WeekStartDate');
     if (Ext.isEmpty(week_start_date)) {
       return 0;
     }
@@ -34,7 +34,7 @@ Ext.define('CA.techservices.timesheet.TimeRowUtils', {
       return value;
     }
 
-    var teis = record.get('TimeEntryItemRecords');
+    let teis = record.get('TimeEntryItemRecords');
     if (Ext.isEmpty(teis)) {
       return value;
     }
@@ -44,8 +44,8 @@ Ext.define('CA.techservices.timesheet.TimeRowUtils', {
     }
 
     if (/\./.test(field_name)) {
-      var field_array = field_name.split('.');
-      var field = field_array.shift();
+      let field_array = field_name.split('.');
+      let field = field_array.shift();
       if (field_array.length == 1) {
         if (Ext.isEmpty(teis[0].get(field))) {
           return null;
@@ -70,21 +70,21 @@ Ext.define('CA.techservices.timesheet.TimeRowUtils', {
       return value;
     }
 
-    var index = Ext.Array.indexOf(CA.techservices.timesheet.TimeRowUtils.daysInOrder, day_name);
-    var week_start_date = record.get('WeekStartDate');
+    let index = Ext.Array.indexOf(CA.techservices.timesheet.TimeRowUtils.daysInOrder, day_name);
+    let week_start_date = record.get('WeekStartDate');
 
     if (Ext.isEmpty(week_start_date)) {
       return 0;
     }
 
-    var week_end_date = Rally.util.DateTime.add(week_start_date, 'week', 1);
+    let week_end_date = Rally.util.DateTime.add(week_start_date, 'week', 1);
 
-    var time_entry_values = record.get('TimeEntryValueRecords');
+    let time_entry_values = record.get('TimeEntryValueRecords');
 
-    var day_value = 0;
+    let day_value = 0;
     Ext.Array.each(time_entry_values, function (time_entry_value) {
-      var tev_day = time_entry_value.get('DateVal').getUTCDay();
-      var tev_date = time_entry_value.get('DateVal');
+      let tev_day = time_entry_value.get('DateVal').getUTCDay();
+      let tev_date = time_entry_value.get('DateVal');
 
       if (tev_day == index && tev_date >= week_start_date && tev_date < week_end_date) {
         day_value = time_entry_value.get('Hours');
@@ -95,9 +95,9 @@ Ext.define('CA.techservices.timesheet.TimeRowUtils', {
   },
 
   getTotalFromDayValues: function (value, record) {
-    var total = 0;
+    let total = 0;
     Ext.Array.each(CA.techservices.timesheet.TimeRowUtils.daysInOrder, function (day) {
-      var hours = record.get(day) || 0;
+      let hours = record.get(day) || 0;
       total = 100 * hours + total;
     });
 
@@ -109,18 +109,18 @@ Ext.define('CA.techservices.timesheet.TimeRowUtils', {
       return CA.techservices.timesheet.TimeRowUtils.daysInOrder;
     }
 
-    var standard_days = CA.techservices.timesheet.TimeRowUtils.daysInOrder;
+    let standard_days = CA.techservices.timesheet.TimeRowUtils.daysInOrder;
 
-    var first_days = Ext.Array.slice(standard_days, week_start_day, 7);
-    var second_days = Ext.Array.slice(standard_days, 0, week_start_day);
+    let first_days = Ext.Array.slice(standard_days, week_start_day, 7);
+    let second_days = Ext.Array.slice(standard_days, 0, week_start_day);
 
     return Ext.Array.push(first_days, second_days);
   },
 
   getValueFromDayOfWeek: function (week_start_date, week_start_day, day_name) {
-    var days_in_order = CA.techservices.timesheet.TimeRowUtils.getOrderedDaysBasedOnWeekStart(week_start_day);
+    let days_in_order = CA.techservices.timesheet.TimeRowUtils.getOrderedDaysBasedOnWeekStart(week_start_day);
 
-    var index = Ext.Array.indexOf(days_in_order, day_name);
+    let index = Ext.Array.indexOf(days_in_order, day_name);
     if (moment(week_start_date).hours() === 0) {
       return moment(week_start_date).add(index, 'days').toDate();
     }
@@ -133,12 +133,12 @@ Ext.define('CA.techservices.timesheet.TimeRowUtils', {
       return value;
     }
 
-    var pref = record.get('DetailPreference');
+    let pref = record.get('DetailPreference');
     if (Ext.isEmpty(pref)) {
       return {};
     }
 
-    var pref_value = pref.get('Value');
+    let pref_value = pref.get('Value');
 
     if (Ext.isEmpty(pref_value)) {
       return {};
@@ -151,9 +151,9 @@ Ext.define('CA.techservices.timesheet.TimeRowUtils', {
   },
 
   getItemOIDFromTimeEntryItem: function (record) {
-    var item_oid = -1;
-    var workproduct = record.get('WorkProduct');
-    var task = record.get('Task');
+    let item_oid = -1;
+    let workproduct = record.get('WorkProduct');
+    let task = record.get('Task');
 
     if (!Ext.isEmpty(workproduct)) {
       item_oid = workproduct.ObjectID;
@@ -169,23 +169,23 @@ Ext.define('CA.techservices.timesheet.TimeRowUtils', {
   getDetailPreference: function (record) {
     return Deft.Chain.sequence([
       function () {
-        var deferred = Ext.create('Deft.Deferred');
+        let deferred = Ext.create('Deft.Deferred');
         if (!Ext.isEmpty(record.get('DetailPreference'))) {
           return [record.get('DetailPreference')];
         }
 
-        var oid = record.get('TaskOID');
+        let oid = record.get('TaskOID');
         if (oid < 0) {
           oid = record.get('WorkProductOID');
         }
-        var key_start = CA.techservices.timesheet.TimeRowUtils.getDetailPrefix(record.get('WeekStartDate'));
+        let key_start = CA.techservices.timesheet.TimeRowUtils.getDetailPrefix(record.get('WeekStartDate'));
 
-        var key = Ext.String.format('{0}.{1}', key_start, oid);
+        let key = Ext.String.format('{0}.{1}', key_start, oid);
 
         Rally.data.ModelFactory.getModel({
           type: 'Preference',
           success: function (model) {
-            var pref = Ext.create(model, {
+            let pref = Ext.create(model, {
               Name: key,
               Value: '{}',
               User: Rally.getApp().getContext().getUser()._ref,
@@ -209,10 +209,10 @@ Ext.define('CA.techservices.timesheet.TimeRowUtils', {
   },
 
   loadWsapiRecords: function (config, returnOperation) {
-    var deferred = Ext.create('Deft.Deferred');
-    var me = this;
+    let deferred = Ext.create('Deft.Deferred');
+    let me = this;
 
-    var default_config = {
+    let default_config = {
       model: 'Preference',
       fetch: ['ObjectID']
     };
@@ -263,7 +263,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'number',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
 
         if (Ext.isEmpty(item)) {
           return -1;
@@ -276,7 +276,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
 
         if (Ext.isEmpty(item)) {
           return -1;
@@ -289,7 +289,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task');
 
         if (Ext.isEmpty(item)) {
           return '';
@@ -319,7 +319,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'number',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
 
         if (Ext.isEmpty(item)) {
           return -1;
@@ -332,7 +332,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
 
         if (Ext.isEmpty(item)) {
           return '';
@@ -345,7 +345,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct');
 
         if (Ext.isEmpty(item)) {
           return '';
@@ -391,7 +391,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'number',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
 
         if (Ext.isEmpty(item)) {
           return -1;
@@ -404,7 +404,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
 
         if (Ext.isEmpty(item)) {
           return '';
@@ -417,7 +417,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'string',
       defaultValue: null,
       convert: function (value, record) {
-        var item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
+        let item = CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'WorkProduct.PortfolioItem');
 
         if (Ext.isEmpty(item)) {
           return '';
@@ -478,7 +478,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         return CA.techservices.timesheet.TimeRowUtils.getFieldFromTimeEntryItems(value, record, 'Task.State') || '';
       },
       sortType: function (value) {
-        var allowed_order = ['Defined', 'In-Progress', 'Completed'];
+        let allowed_order = ['Defined', 'In-Progress', 'Completed'];
         return Ext.Array.indexOf(allowed_order, value);
       }
     },
@@ -563,27 +563,27 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   ],
 
   getWeekStartDates: function () {
-    var day_of_week = this.get('WeekStart');
-    var date_of_week = this.get('WeekStartDate');
+    let day_of_week = this.get('WeekStart');
+    let date_of_week = this.get('WeekStartDate');
 
     if (day_of_week === 0) {
       return [date_of_week];
     }
 
-    var date1 = Rally.util.DateTime.add(date_of_week, 'day', -1 * day_of_week);
-    var date2 = Rally.util.DateTime.add(date1, 'day', 7);
+    let date1 = Rally.util.DateTime.add(date_of_week, 'day', -1 * day_of_week);
+    let date2 = Rally.util.DateTime.add(date1, 'day', 7);
 
     return [date1, date2];
   },
 
   save: function (v) {
-    var me = this;
-    var changes = this.getChanges();
-    var promises = [];
-    // var week_start_date = this.get('WeekStartDate');
+    let me = this;
+    let changes = this.getChanges();
+    let promises = [];
+    // let week_start_date = this.get('WeekStartDate');
 
     Ext.Object.each(changes, function (field, value) {
-      var value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(me.get('WeekStartDate'), me.get('WeekStart'), field);
+      let value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(me.get('WeekStartDate'), me.get('WeekStart'), field);
       //if ( value_date > new Date() ) { Rally.ui.notify.Notifier.showWarning({message: 'Warning: Creating Time in Future', timeout: 1000});  }
 
       if (Ext.Array.contains(CA.techservices.timesheet.TimeRowUtils.daysInOrder, field)) {
@@ -643,9 +643,9 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeTaskFieldValue: function (field, value) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
-    var task = this.get('Task');
+    let task = this.get('Task');
 
     if (Ext.isEmpty(task)) {
       return;
@@ -681,9 +681,9 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeDefectFieldValue: function (field, value) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
-    var defect = this.get('WorkProduct');
+    let defect = this.get('WorkProduct');
 
     if (Ext.isEmpty(defect)) {
       return;
@@ -715,10 +715,10 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeDayValue: function (day, value) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
 
-    var time_entry_value = this.getTimeEntryValue(day);
+    let time_entry_value = this.getTimeEntryValue(day);
 
     // remove from cache of fields that have changed (assumes save is fine)
     delete this.modified[day];
@@ -741,17 +741,17 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   clearAndRemove: function () {
-    var me = this,
+    let me = this,
       promises = [];
 
     Rally.getApp().setLoading('Clearing...');
 
     Ext.Array.each(CA.techservices.timesheet.TimeRowUtils.daysInOrder, function (day_name) {
-      var time_entry_value = me.getTimeEntryValue(day_name);
+      let time_entry_value = me.getTimeEntryValue(day_name);
 
       if (!Ext.isEmpty(time_entry_value)) {
         promises.push(function () {
-          var deferred = Ext.create('Deft.Deferred');
+          let deferred = Ext.create('Deft.Deferred');
           me.set(day_name, 0);
           time_entry_value.destroy({
             callback: function (result, operation) {
@@ -769,8 +769,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         this.set('TimeEntryValueRecords', []);
         this.set('Total', 0);
 
-        var time_entry_items = this.get('TimeEntryItemRecords');
-        var promises = Ext.Array.map(time_entry_items, function (time_entry_item) {
+        let time_entry_items = this.get('TimeEntryItemRecords');
+        let promises = Ext.Array.map(time_entry_items, function (time_entry_item) {
           return function () {
             return me._removeTimeEntryItem(time_entry_item);
           };
@@ -795,7 +795,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _removeTimeEntryItem: function (time_entry_value) {
-    var deferred = Ext.create('Deft.Deferred');
+    let deferred = Ext.create('Deft.Deferred');
     time_entry_value.destroy({
       callback: function (result, operation) {
         if (operation.wasSuccessful()) {
@@ -809,11 +809,11 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   getTimeEntryValue: function (day_name) {
-    var index = Ext.Array.indexOf(CA.techservices.timesheet.TimeRowUtils.daysInOrder, day_name);
-    var week_start_date = this.get('WeekStartDate');
-    var time_entry_values = this.get('TimeEntryValueRecords');
-    var day_value = null;
-    var value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(this.get('WeekStartDate'), this.get('WeekStart'), day_name);
+    let index = Ext.Array.indexOf(CA.techservices.timesheet.TimeRowUtils.daysInOrder, day_name);
+    let week_start_date = this.get('WeekStartDate');
+    let time_entry_values = this.get('TimeEntryValueRecords');
+    let day_value = null;
+    let value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(this.get('WeekStartDate'), this.get('WeekStart'), day_name);
 
     Ext.Array.each(time_entry_values, function (time_entry_value) {
       if (Ext.Date.format(value_date, 'y-m-d') === Ext.Date.format(time_entry_value.get('DateVal'), 'y-m-d')) {
@@ -825,12 +825,12 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _createTimeEntryValue: function (day_name, value) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
-    var value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(this.get('WeekStartDate'), this.get('WeekStart'), day_name);
-    var time_entry_item = null;
+    let value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(this.get('WeekStartDate'), this.get('WeekStart'), day_name);
+    let time_entry_item = null;
     Ext.Array.each(this.get('TimeEntryItemRecords'), function (item) {
-      var delta = Rally.util.DateTime.getDifference(value_date, item.get('WeekStartDate'), 'day');
+      let delta = Rally.util.DateTime.getDifference(value_date, item.get('WeekStartDate'), 'day');
       if (value_date >= item.get('WeekStartDate') && delta < 7) {
         time_entry_item = item;
       }
@@ -870,12 +870,12 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   _createTimeEntryItem: function (value_date, project, workproduct, task) {
     Rally.getApp().setLoading('Creating Time Entry Item...');
 
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
 
-    var sunday_start = TSDateUtils.getBeginningOfWeekISOForLocalDate(value_date);
+    let sunday_start = TSDateUtils.getBeginningOfWeekISOForLocalDate(value_date);
 
-    var config = {
+    let config = {
       WeekStartDate: sunday_start,
       Project: { _ref: project._ref }
     };
@@ -892,10 +892,10 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       type: 'TimeEntryItem',
       scope: this,
       success: function (model) {
-        var tei = Ext.create(model, config);
+        let tei = Ext.create(model, config);
         tei.save({
           callback: function (result) {
-            var records = me.get('TimeEntryItemRecords') || [];
+            let records = me.get('TimeEntryItemRecords') || [];
             records.push(result);
             me.set('TimeEntryItemRecords', records);
             Rally.getApp().setLoading(false);
@@ -908,10 +908,10 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _createTimeEntryValueWithModel: function (day_name, value, value_date, time_entry_item) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
 
-    var date_val = TSDateUtils.formatShiftedDate(value_date, 'Y-m-d') + 'T00:00:00.000Z';
+    let date_val = TSDateUtils.formatShiftedDate(value_date, 'Y-m-d') + 'T00:00:00.000Z';
 
     Rally.data.ModelFactory.getModel({
       type: 'TimeEntryValue',
@@ -919,7 +919,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
       success: function (model) {
         this._changeFieldRights(model);
 
-        var tev = Ext.create(model, {
+        let tev = Ext.create(model, {
           Hours: value,
           TimeEntryItem: { _ref: time_entry_item.get('_ref') },
           DateVal: date_val
@@ -930,7 +930,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
             if (operation.wasSuccessful()) {
               this.set(day_name, value);
 
-              var records = me.get('TimeEntryValueRecords') || [];
+              let records = me.get('TimeEntryValueRecords') || [];
               records.push(result);
               me.set('TimeEntryValueRecords', records);
 
@@ -950,7 +950,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeFieldRights: function (model) {
-    var fields = model.getFields();
+    let fields = model.getFields();
     Ext.Array.each(fields, function (field, idx) {
       if (field.name === 'TimeEntryItem') {
         field.readOnly = false;
@@ -977,8 +977,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _changeDetailPreference: function (value) {
-    var me = this;
-    var json_value = Ext.JSON.encode(value);
+    let me = this;
+    let json_value = Ext.JSON.encode(value);
 
     if (this.process && this.process.getState() === 'pending') {
       return;
@@ -997,7 +997,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
         if (preferences.length === 0) {
           return;
         }
-        var preference = preferences[0];
+        let preference = preferences[0];
 
         preference.set('Value', json_value);
         preference.save();
@@ -1009,15 +1009,15 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   addTimeBlock: function (day, time_object) {
-    var block_set = this.get('_DetailBlocks');
+    let block_set = this.get('_DetailBlocks');
     if (Ext.isEmpty(block_set) && !Ext.isEmpty(this.get('DetailPreference'))) {
       block_set = Ext.JSON.decode(this.get('DetailPreference').get('Value'));
       this.set('_DetailBlocks', block_set);
     }
 
-    var blocks = this.getTimeBlocks(day);
+    let blocks = this.getTimeBlocks(day);
 
-    var block = this.getTimeBlock(day, time_object.id);
+    let block = this.getTimeBlock(day, time_object.id);
     if (Ext.isEmpty(block)) {
       blocks.push(time_object);
       //block_set[day] = blocks;
@@ -1033,15 +1033,15 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   removeTimeBlock: function (day, block_id) {
-    var block_set = this.get('_DetailBlocks');
+    let block_set = this.get('_DetailBlocks');
     if (Ext.isEmpty(block_set) && !Ext.isEmpty(this.get('DetailPreference'))) {
       block_set = Ext.JSON.decode(this.get('DetailPreference').get('Value'));
       this.set('_DetailBlocks', block_set);
     }
 
-    var blocks = this.getTimeBlocks(day);
+    let blocks = this.getTimeBlocks(day);
 
-    var new_blocks = Ext.Array.filter(blocks, function (block) {
+    let new_blocks = Ext.Array.filter(blocks, function (block) {
       return block_id !== block.id;
     });
 
@@ -1053,8 +1053,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   getTimeBlock: function (day, id) {
-    var blocks = this.getTimeBlocks(day);
-    var block = null;
+    let blocks = this.getTimeBlocks(day);
+    let block = null;
     Ext.Array.each(blocks, function (b) {
       if (b.id === id) {
         block = b;
@@ -1065,7 +1065,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   getTimeBlocks: function (day) {
-    var blocks = this.get('_DetailBlocks');
+    let blocks = this.get('_DetailBlocks');
 
     if (blocks && blocks[day]) {
       return blocks[day];
@@ -1078,8 +1078,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _dateIsPrecedingWeek: function () {
-    var today = new Date();
-    var week_start_date = this.get('WeekStartDate');
+    let today = new Date();
+    let week_start_date = this.get('WeekStartDate');
     if (today < week_start_date) {
       return false;
     }
@@ -1102,7 +1102,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _dateIsPrecedingMonth: function (value_date) {
-    var today = new Date();
+    let today = new Date();
     // if we're in next year or next month, it's not preceding month
     if (value_date.getYear() > today.getYear() || value_date.getMonth() > today.getMonth()) {
       return false;
@@ -1133,8 +1133,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   hasOpenDetails: function () {
-    var has_open = false;
-    var blocks = this.get('_DetailBlocks');
+    let has_open = false;
+    let blocks = this.get('_DetailBlocks');
 
     Ext.Object.each(blocks, function (day, day_blocks) {
       Ext.Array.each(day_blocks, function (block) {

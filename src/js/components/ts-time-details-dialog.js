@@ -64,10 +64,10 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
   },
 
   _buildDays: function () {
-    var me = this,
+    let me = this,
       days = CA.techservices.timesheet.TimeRowUtils.daysInOrder;
 
-    var container = this.down('#daysContainer');
+    let container = this.down('#daysContainer');
     this.day_boxes = {};
 
     Ext.Array.each(days, function (day) {
@@ -78,14 +78,14 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
         tpl: '<span class="day_name">{day}</span>: <span class="day_value">{value}</day>'
       });
 
-      var value = me._getHoursForDay(day);
+      let value = me._getHoursForDay(day);
       me.day_boxes[day].update({ day: day, value: value });
     });
   },
 
   _getHoursForDay: function (day_name) {
-    var time_entry_value = this.row.getTimeEntryValue(day_name);
-    var value = 0;
+    let time_entry_value = this.row.getTimeEntryValue(day_name);
+    let value = 0;
 
     if (!Ext.isEmpty(time_entry_value)) {
       value = time_entry_value.get('Hours');
@@ -95,7 +95,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
   },
 
   _buildForm: function () {
-    var me = this,
+    let me = this,
       container = this.down('#dayContainer');
 
     this._buildNavigation(container);
@@ -112,9 +112,9 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
   },
 
   _buildNavigation: function (container) {
-    var me = this;
+    let me = this;
 
-    var selector_box = container.add({
+    let selector_box = container.add({
       xtype: 'container',
       layout: 'hbox'
     });
@@ -171,11 +171,11 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
   },
 
   _updateDetailsPanel: function () {
-    var me = this,
+    let me = this,
       container = this.down('#detailsPanel');
     container.removeAll();
 
-    var today_details = this.row.getTimeBlocks(CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay]);
+    let today_details = this.row.getTimeBlocks(CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay]);
 
     container.add({
       xtype: 'container',
@@ -196,9 +196,9 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
       );
     }
 
-    var current_total = this._getHoursForDay(CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay]);
+    let current_total = this._getHoursForDay(CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay]);
 
-    var adjustment = current_total - this._getTotal();
+    let adjustment = current_total - this._getTotal();
     if (adjustment < 0) {
       adjustment = 0;
     }
@@ -208,7 +208,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
   },
 
   _addAddButton: function (container) {
-    var button_container = container.add({
+    let button_container = container.add({
       xtype: 'container',
       layout: 'hbox',
       width: '100%',
@@ -232,7 +232,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
   },
 
   _addDailyAdjustmentBox: function (container, adjustment) {
-    var adjustment_container = container.add({
+    let adjustment_container = container.add({
       xtype: 'container',
       layout: 'hbox',
       width: '100%',
@@ -241,7 +241,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
 
     adjustment_container.add({ xtype: 'container', flex: 1 });
 
-    var field = adjustment_container.add({
+    let field = adjustment_container.add({
       itemId: 'adjustment_box',
       xtype: 'rallynumberfield',
       value: adjustment,
@@ -267,21 +267,21 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
   },
 
   _addTimeBlock: function (detail) {
-    var container = this.down('#time_block_container');
+    let container = this.down('#time_block_container');
 
-    var item_id = new Date().getTime();
+    let item_id = new Date().getTime();
     if (!Ext.isEmpty(detail)) {
       item_id = detail.id;
     }
 
-    var block = container.add({
+    let block = container.add({
       xtype: 'container',
       layout: 'hbox',
       itemId: item_id,
       defaults: { margin: 3 }
     });
 
-    var hours = [
+    let hours = [
       { display: '12A', value: 0 },
       { display: '1 A', value: 1 },
       { display: '2 A', value: 2 },
@@ -308,18 +308,18 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
       { display: '11P', value: 23 }
     ];
 
-    var hour_store_start = Ext.create('Rally.data.custom.Store', {
+    let hour_store_start = Ext.create('Rally.data.custom.Store', {
       fields: ['display', 'value'],
       data: Ext.clone(hours)
     });
 
-    var hour_store_end = Ext.create('Rally.data.custom.Store', {
+    let hour_store_end = Ext.create('Rally.data.custom.Store', {
       fields: ['display', 'value'],
       data: Ext.clone(hours)
     });
 
-    var now = new Date();
-    var hour_field_start = {
+    let now = new Date();
+    let hour_field_start = {
       xtype: 'rallycombobox',
       itemId: 'start_hour',
       fieldLabel: ' ',
@@ -333,7 +333,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
       value: now.getHours()
     };
 
-    var minute_field_start = {
+    let minute_field_start = {
       xtype: 'rallynumberfield',
       itemId: 'start_minute',
       fieldLabel: '  ',
@@ -346,7 +346,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
       value: now.getMinutes()
     };
 
-    var hour_field_end = {
+    let hour_field_end = {
       xtype: 'rallycombobox',
       itemId: 'end_hour',
       allowNoEntry: true,
@@ -361,7 +361,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
       labelWidth: 20
     };
 
-    var minute_field_end = {
+    let minute_field_end = {
       xtype: 'rallynumberfield',
       itemId: 'end_minute',
       fieldLabel: '  ',
@@ -373,7 +373,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
       labelWidth: 5
     };
 
-    var total_field = {
+    let total_field = {
       xtype: 'rallynumberfield',
       itemId: 'block_total',
       fieldLabel: ' = ',
@@ -397,7 +397,7 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
       minute_field_end.value = detail.end_minute;
     }
 
-    var fields = [block.add(hour_field_start), block.add(minute_field_start), block.add(hour_field_end), block.add(minute_field_end)];
+    let fields = [block.add(hour_field_start), block.add(minute_field_start), block.add(hour_field_end), block.add(minute_field_end)];
 
     block.add({ xtype: 'container', flex: 1 });
     block.add(total_field);
@@ -453,16 +453,16 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
   },
 
   _setValidBlockValues: function (block) {
-    var start_hour = block.down('#start_hour').getValue();
-    var start_minute = block.down('#start_minute').getValue();
-    var end_hour = block.down('#end_hour').getValue();
-    var end_minute = block.down('#end_minute').getValue();
+    let start_hour = block.down('#start_hour').getValue();
+    let start_minute = block.down('#start_minute').getValue();
+    let end_hour = block.down('#end_hour').getValue();
+    let end_minute = block.down('#end_minute').getValue();
 
     if (Ext.isEmpty(start_hour)) {
       return;
     }
 
-    var end_store = block.down('#end_hour').getStore();
+    let end_store = block.down('#end_hour').getStore();
     end_store.clearFilter(true);
     end_store.addFilter({ property: 'value', operator: '>=', value: start_hour });
 
@@ -476,18 +476,18 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
   },
 
   _updateBlockTotal: function (block) {
-    var start_hour = block.down('#start_hour').getValue();
-    var start_minute = block.down('#start_minute').getValue();
-    var end_hour = block.down('#end_hour').getValue();
-    var end_minute = block.down('#end_minute').getValue();
+    let start_hour = block.down('#start_hour').getValue();
+    let start_minute = block.down('#start_minute').getValue();
+    let end_hour = block.down('#end_hour').getValue();
+    let end_minute = block.down('#end_minute').getValue();
 
     block.down('#block_total').setValue(0);
 
-    var total = 0;
+    let total = 0;
 
     if (!Ext.isEmpty(start_hour) && !Ext.isEmpty(end_hour)) {
-      var start = new Date(1999, 1, 1, start_hour, start_minute || 0);
-      var end = new Date(1999, 1, 1, end_hour, end_minute || 0);
+      let start = new Date(1999, 1, 1, start_hour, start_minute || 0);
+      let end = new Date(1999, 1, 1, end_hour, end_minute || 0);
       total = Rally.util.DateTime.getDifference(end, start, 'minute') / 60;
     }
 
@@ -512,13 +512,13 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
       return;
     }
 
-    var disabled = false;
+    let disabled = false;
     Ext.Array.each(this.timeBlocks, function (block) {
       if (!block.down('#block_total')) {
         return;
       }
 
-      var total = block.down('#block_total').getValue() || 0;
+      let total = block.down('#block_total').getValue() || 0;
 
       if (total <= 0) {
         disabled = true;
@@ -529,18 +529,18 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
   },
 
   _getTotal: function () {
-    var total = 0;
+    let total = 0;
 
     Ext.Array.each(this.timeBlocks, function (block) {
       if (!Ext.isEmpty(block)) {
-        var value = (block.down('#block_total') && block.down('#block_total').getValue()) || 0;
+        let value = (block.down('#block_total') && block.down('#block_total').getValue()) || 0;
         total += value;
       }
     });
 
-    var adjustment_box = this.down('#adjustment_box');
+    let adjustment_box = this.down('#adjustment_box');
     if (!Ext.isEmpty(adjustment_box)) {
-      var adjustment = adjustment_box.getValue() || 0;
+      let adjustment = adjustment_box.getValue() || 0;
       total = total + adjustment;
     }
 
@@ -548,8 +548,8 @@ Ext.define('CA.technicalservices.TimeDetailsDialog', {
   },
 
   _recalculateTotal: function () {
-    var total = Ext.util.Format.number(this._getTotal(), '#.##');
-    var day = CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay];
+    let total = Ext.util.Format.number(this._getTotal(), '#.##');
+    let day = CA.techservices.timesheet.TimeRowUtils.daysInOrder[this.currentDay];
 
     this.day_boxes[day].update({ day: day, value: total });
 

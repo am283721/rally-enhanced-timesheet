@@ -84,7 +84,7 @@ Ext.define('CA.technicalservices.ColumnPickerDialog', {
           scope: this,
           userAction: 'clicked done in dialog',
           handler: function () {
-            var selectedRecords = this.getRecordsWithSelection();
+            let selectedRecords = this.getRecordsWithSelection();
             this.fireEvent('columnschosen', this, selectedRecords);
             this.close();
           }
@@ -102,15 +102,15 @@ Ext.define('CA.technicalservices.ColumnPickerDialog', {
   },
 
   _buildGrid: function () {
-    var mode = this.multiple ? 'MULTI' : 'SINGLE';
+    let mode = this.multiple ? 'MULTI' : 'SINGLE';
     this.selectionModel = Ext.create('Rally.ui.selection.CheckboxModel', {
       mode: mode,
       allowDeselect: true
     });
 
-    var pickableColumns = this.pickableColumns;
+    let pickableColumns = this.pickableColumns;
 
-    var store = Ext.create('Rally.data.custom.Store', {
+    let store = Ext.create('Rally.data.custom.Store', {
       data: this.pickableColumns
     });
 
@@ -124,7 +124,7 @@ Ext.define('CA.technicalservices.ColumnPickerDialog', {
       store: store,
       listeners: {
         viewready: function (grid) {
-          var selectionModel = grid.getSelectionModel();
+          let selectionModel = grid.getSelectionModel();
 
           Ext.Array.each(pickableColumns, function (col, idx) {
             if (!col.hidden) {
@@ -143,8 +143,8 @@ Ext.define('CA.technicalservices.ColumnPickerDialog', {
   },
 
   getRecordsWithSelection: function () {
-    var selected_items = this.grid.getSelectionModel().getSelection();
-    var selected_items_by_dataindex = {};
+    let selected_items = this.grid.getSelectionModel().getSelection();
+    let selected_items_by_dataindex = {};
     Ext.Array.each(selected_items, function (selected_item) {
       selected_items_by_dataindex[selected_item.get('text')] = selected_item.getData();
     });

@@ -26,7 +26,7 @@ Ext.define('TSTimesheet', {
 
   async launch() {
     try {
-      this.isTimeSheetAdmin = await TSUtilities.currentUserIsTimeSheetAdmin();
+      this.isTimeSheetAdmin = await TSUtilities.getCurrentUserIsTimeSheetAdmin();
       this.portfolioItemTypes = await TSUtilities.fetchPortfolioItemTypes();
       this._addSelectors(this.down('#selector_box'));
     } catch (e) {
@@ -43,9 +43,9 @@ Ext.define('TSTimesheet', {
     container.add({ xtype: 'container', itemId: 'add_button_box' });
 
     const adminContainer = container.add({ xtype: 'container', flex: 1, layout: { type: 'hbox', align: 'middle', pack: 'center' } });
-    var week_starts_on = this.getSetting('weekStartsOn');
+    let week_starts_on = this.getSetting('weekStartsOn');
 
-    if (this.isTimeSheetAdmin) {
+    if (this.isTimeSheetAdmin()) {
       adminContainer.add({
         xtype: 'rallyusersearchcombobox',
         includeWorkspaceUsers: true,
@@ -77,7 +77,7 @@ Ext.define('TSTimesheet', {
               return;
             }
 
-            var week_start = TSDateUtils.getBeginningOfWeekForLocalDate(new_value, week_starts_on);
+            let week_start = TSDateUtils.getBeginningOfWeekForLocalDate(new_value, week_starts_on);
             if (week_start !== new_value) {
               dp.setValue(week_start);
             }
@@ -160,9 +160,9 @@ Ext.define('TSTimesheet', {
   },
 
   _filterState: function (stateChange) {
-    var timetable = this.down('tstimetable');
+    let timetable = this.down('tstimetable');
 
-    var stateFilter = new Ext.util.Filter({
+    let stateFilter = new Ext.util.Filter({
       filterFn: function (item) {
         return Ext.Array.contains(stateChange.value, item.get('State')) || !item.get('State');
       }
@@ -177,7 +177,7 @@ Ext.define('TSTimesheet', {
 
   // my workproducts are stories I own and stories that have tasks I own
   _addCurrentStories: function () {
-    var timetable = this.down('tstimetable');
+    let timetable = this.down('tstimetable');
 
     if (!timetable) {
       return;
@@ -185,17 +185,17 @@ Ext.define('TSTimesheet', {
 
     this.setLoading('Finding my current stories...');
 
-    var my_filters = Rally.data.wsapi.Filter.or([
+    let my_filters = Rally.data.wsapi.Filter.or([
       { property: 'Owner.ObjectID', value: this.getContext().getUser().ObjectID },
       { property: 'Tasks.Owner.ObjectID', value: this.getContext().getUser().ObjectID }
     ]);
 
-    var current_filters = Rally.data.wsapi.Filter.and([
+    let current_filters = Rally.data.wsapi.Filter.and([
       { property: 'Iteration.StartDate', operator: '<=', value: Rally.util.DateTime.toIsoString(this.startDate) },
       { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) }
     ]);
 
-    var config = {
+    let config = {
       model: 'HierarchicalRequirement',
       context: {
         project: null
@@ -207,8 +207,8 @@ Ext.define('TSTimesheet', {
     TSUtilities.loadWsapiRecords(config).then({
       scope: this,
       success: function (items) {
-        var new_item_count = items.length;
-        var current_count = timetable.getGrid().getStore().getTotalCount();
+        let new_item_count = items.length;
+        let current_count = timetable.getGrid().getStore().getTotalCount();
 
         if (current_count + new_item_count > this.getSetting('maxRows')) {
           Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + this.getSetting('maxRows') + ' lines in the time sheet.');
@@ -228,7 +228,7 @@ Ext.define('TSTimesheet', {
   },
 
   _addCurrentTasksAndDefaults: function () {
-    var me = this;
+    let me = this;
 
     Deft.Chain.sequence([this._addCurrentTasks, this._addDefaults], this)
       .then({
@@ -242,15 +242,15 @@ Ext.define('TSTimesheet', {
   },
 
   _addDefaults: function () {
-    var timetable = this.down('tstimetable'),
+    let timetable = this.down('tstimetable'),
       me = this;
     if (!timetable) {
       return;
     }
 
-    var defaults = timetable.time_entry_defaults;
+    let defaults = timetable.time_entry_defaults;
 
-    var promises = [];
+    let promises = [];
     this.setLoading('Finding my defaults...');
 
     Ext.Object.each(defaults, function (oid, type) {
@@ -259,9 +259,9 @@ Ext.define('TSTimesheet', {
       }
 
       promises.push(function () {
-        var deferred = Ext.create('Deft.Deferred');
+        let deferred = Ext.create('Deft.Deferred');
 
-        var config = {
+        let config = {
           model: type,
           context: {
             project: null
@@ -273,8 +273,8 @@ Ext.define('TSTimesheet', {
         TSUtilities.loadWsapiRecords(config).then({
           scope: this,
           success: function (items) {
-            var new_item_count = items.length;
-            var current_count = timetable.getGrid().getStore().getTotalCount();
+            let new_item_count = items.length;
+            let current_count = timetable.getGrid().getStore().getTotalCount();
 
             if (current_count + new_item_count > me.getSetting('maxRows')) {
               Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
@@ -301,17 +301,17 @@ Ext.define('TSTimesheet', {
   },
 
   _addCurrentTasks: function () {
-    var me = this;
-    var deferred = Ext.create('Deft.Deferred');
+    let me = this;
+    let deferred = Ext.create('Deft.Deferred');
 
-    var timetable = this.down('tstimetable');
+    let timetable = this.down('tstimetable');
     if (!timetable) {
       return;
     }
 
     this.setLoading('Finding my current tasks...');
 
-    var config = {
+    let config = {
       model: 'Task',
       context: {
         project: null
@@ -328,8 +328,8 @@ Ext.define('TSTimesheet', {
     TSUtilities.loadWsapiRecords(config).then({
       scope: this,
       success: function (tasks) {
-        var new_item_count = tasks.length;
-        var current_count = timetable.getGrid().getStore().getTotalCount();
+        let new_item_count = tasks.length;
+        let current_count = timetable.getGrid().getStore().getTotalCount();
 
         if (current_count + new_item_count > me.getSetting('maxRows')) {
           Ext.Msg.alert('Problem Adding Items', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
@@ -352,10 +352,10 @@ Ext.define('TSTimesheet', {
   },
 
   _findAndAddTask: function () {
-    var me = this;
-    var timetable = this.down('tstimetable');
-    var filters = [{ property: 'State', operator: '!=', value: 'Completed' }];
-    var fetch_fields = ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID'];
+    let me = this;
+    let timetable = this.down('tstimetable');
+    let filters = [{ property: 'State', operator: '!=', value: 'Completed' }];
+    let fetch_fields = ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID'];
 
     if (timetable) {
       Ext.create('Rally.technicalservices.ChooserDialog', {
@@ -416,8 +416,8 @@ Ext.define('TSTimesheet', {
               selectedRecords = [selectedRecords];
             }
 
-            var new_item_count = selectedRecords.length;
-            var current_count = timetable.getGrid().getStore().getTotalCount();
+            let new_item_count = selectedRecords.length;
+            let current_count = timetable.getGrid().getStore().getTotalCount();
 
             if (current_count + new_item_count > me.getSetting('maxRows')) {
               Ext.Msg.alert('Problem Adding Tasks', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
@@ -434,9 +434,9 @@ Ext.define('TSTimesheet', {
   },
 
   _findAndAddStory: function () {
-    var me = this;
-    var timetable = this.down('tstimetable');
-    var filters = Ext.create('Rally.data.QueryFilter', { property: 'ScheduleState', operator: '=', value: 'Requested' });
+    let me = this;
+    let timetable = this.down('tstimetable');
+    let filters = Ext.create('Rally.data.QueryFilter', { property: 'ScheduleState', operator: '=', value: 'Requested' });
     filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'Defined' });
     filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'In-Progress' });
     filters = filters.and({ property: 'DirectChildrenCount', operator: '=', value: 0 });
@@ -491,14 +491,14 @@ Ext.define('TSTimesheet', {
               selectedRecords = [selectedRecords];
             }
 
-            var new_item_count = selectedRecords.length;
-            var current_count = timetable.getGrid().getStore().getTotalCount();
+            let new_item_count = selectedRecords.length;
+            let current_count = timetable.getGrid().getStore().getTotalCount();
 
             if (current_count + new_item_count > me.getSetting('maxRows')) {
               Ext.Msg.alert('Problem Adding Stories', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
             } else {
               Ext.Array.each(selectedRecords, function (selectedRecord) {
-                if (selectedRecord.get('Release') && new Date(selectedRecord.get('Release').ReleaseDate) < new Date() && !me.isTimeSheetAdmin) {
+                if (selectedRecord.get('Release') && new Date(selectedRecord.get('Release').ReleaseDate) < new Date() && !me.isTimeSheetAdmin()) {
                   me.showError(`${selectedRecord.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
                 } else {
                   timetable.addRowForItem(selectedRecord);
@@ -513,8 +513,8 @@ Ext.define('TSTimesheet', {
   },
 
   updateData: function () {
-    var timesheetUser;
-    var timetable = this.down('tstimetable');
+    let timesheetUser;
+    let timetable = this.down('tstimetable');
 
     if (!Ext.isEmpty(timetable)) {
       timetable.destroy();
@@ -526,7 +526,7 @@ Ext.define('TSTimesheet', {
 
     this.startDate = this.down('#date_selector').getValue();
 
-    var editable = true;
+    let editable = true;
 
     this.time_table = this.add({
       xtype: 'tstimetable',
@@ -556,10 +556,14 @@ Ext.define('TSTimesheet', {
     });
   },
 
-  getSettingsFields: function () {
-    var check_box_margins = '5 0 5 0';
+  isTimeSheetAdmin() {
+    return this.isTimeSheetAdmin;
+  },
 
-    var days_of_week = [
+  getSettingsFields: function () {
+    let check_box_margins = '5 0 5 0';
+
+    let days_of_week = [
       { Name: 'Sunday', Value: 0 },
       { Name: 'Monday', Value: 1 },
       { Name: 'Tuesday', Value: 2 },

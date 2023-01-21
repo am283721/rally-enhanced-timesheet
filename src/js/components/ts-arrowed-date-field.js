@@ -52,7 +52,7 @@ Ext.define('TSArrowedDate', {
   },
 
   _onPreviousButtonClicked: function () {
-    var value = this.getValue();
+    let value = this.getValue();
     if (Ext.isEmpty(value)) {
       return;
     }
@@ -61,7 +61,7 @@ Ext.define('TSArrowedDate', {
   },
 
   _onNextButtonClicked: function () {
-    var value = this.getValue();
+    let value = this.getValue();
     if (Ext.isEmpty(value)) {
       return;
     }

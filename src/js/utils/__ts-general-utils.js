@@ -9,9 +9,9 @@ Ext.define('TSUtilities', {
   archiveSuffix: '~archived',
 
   loadWsapiRecords: function (config, returnOperation) {
-    var deferred = Ext.create('Deft.Deferred');
+    let deferred = Ext.create('Deft.Deferred');
 
-    var default_config = {
+    let default_config = {
       model: 'Defect',
       fetch: ['ObjectID']
     };
@@ -37,10 +37,10 @@ Ext.define('TSUtilities', {
   },
 
   loadWsapiRecordsWithParallelPages: function (config, msg) {
-    var deferred = Ext.create('Deft.Deferred'),
+    let deferred = Ext.create('Deft.Deferred'),
       me = this;
 
-    var count_check_config = Ext.clone(config);
+    let count_check_config = Ext.clone(config);
     count_check_config.limit = 1;
     count_check_config.pageSize = 1;
     count_check_config.fetch = ['ObjectID'];
@@ -49,16 +49,16 @@ Ext.define('TSUtilities', {
       success: function (operation) {
         config.pageSize = 200;
         config.limit = config.pageSize;
-        var total = operation.resultSet.totalRecords;
-        var page_count = Math.ceil(total / config.pageSize);
+        let total = operation.resultSet.totalRecords;
+        let page_count = Math.ceil(total / config.pageSize);
 
-        var promises = [];
+        let promises = [];
         Ext.Array.each(_.range(1, page_count + 1), function (page_index) {
-          var config_clone = Ext.clone(config);
+          let config_clone = Ext.clone(config);
           config_clone.currentPage = page_index;
           promises.push(function () {
-            var percentage = parseInt((page_index * 100) / page_count, 10);
-            var message = msg || 'Loading values';
+            let percentage = parseInt((page_index * 100) / page_count, 10);
+            let message = msg || 'Loading values';
             Rally.getApp().setLoading(message + ' (' + percentage + '%)');
             return me.loadWsapiRecords(config_clone);
           });
@@ -84,15 +84,15 @@ Ext.define('TSUtilities', {
   },
 
   isEditableProjectForCurrentUser: function (projectRef, scope) {
-    var app = scope || Rally.getApp(),
+    let app = scope || Rally.getApp(),
       me = this;
 
     if (this.currentUserIsAdmin(scope)) {
       return true;
     }
 
-    var project_oid = this._getOidFromRef(projectRef);
-    var editor_permissions = Ext.Array.filter(app.getContext().getPermissions().userPermissions, function (permission) {
+    let project_oid = this._getOidFromRef(projectRef);
+    let editor_permissions = Ext.Array.filter(app.getContext().getPermissions().userPermissions, function (permission) {
       if (permission.Role != 'Editor' && permission.Role != 'ProjectAdmin') {
         return false;
       }
@@ -104,20 +104,20 @@ Ext.define('TSUtilities', {
   },
 
   getEditableProjectForCurrentUser: function () {
-    var app = Rally.getApp();
+    let app = Rally.getApp();
     if (this._currentUserCanWrite()) {
       return app.getContext().getProjectRef();
     }
 
-    var workspace_oid = this._getOidFromRef(app.getContext().getWorkspaceRef());
+    let workspace_oid = this._getOidFromRef(app.getContext().getWorkspaceRef());
 
-    var editor_permissions = Ext.Array.filter(
+    let editor_permissions = Ext.Array.filter(
       app.getContext().getPermissions().userPermissions,
       function (permission) {
         if (Ext.isEmpty(permission.Workspace)) {
           return false;
         }
-        var permission_oid = this._getOidFromRef(permission.Workspace);
+        let permission_oid = this._getOidFromRef(permission.Workspace);
 
         if (workspace_oid != permission_oid) {
           return false;
@@ -135,26 +135,26 @@ Ext.define('TSUtilities', {
   },
 
   _getOidFromRef: function (ref) {
-    var ref_array = ref.replace(/\.js$/, '').split(/\//);
+    let ref_array = ref.replace(/\.js$/, '').split(/\//);
     return ref_array[ref_array.length - 1].replace(/\.js/, '');
   },
 
   // true if sub or workspace admin
   currentUserIsAdmin: function (scope) {
-    var app = scope || Rally.getApp();
+    let app = scope || Rally.getApp();
 
     if (this.currentUserIsSubAdmin()) {
       return true;
     }
 
-    var permissions = app.getContext().getPermissions().userPermissions;
+    let permissions = app.getContext().getPermissions().userPermissions;
 
-    var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
+    let workspace_admin_list = Ext.Array.filter(permissions, function (p) {
       return p.Role == 'Workspace Admin' || p.Role == 'Subscription Admin';
     });
 
-    var current_workspace_ref = app.getContext().getWorkspace()._ref;
-    var is_workspace_admin = false;
+    let current_workspace_ref = app.getContext().getWorkspace()._ref;
+    let is_workspace_admin = false;
 
     if (workspace_admin_list.length > 0) {
       Ext.Array.each(workspace_admin_list, function (p) {
@@ -168,11 +168,11 @@ Ext.define('TSUtilities', {
   },
 
   currentUserIsSubAdmin: function (scope) {
-    var app = scope || Rally.getApp();
+    let app = scope || Rally.getApp();
 
-    var permissions = app.getContext().getPermissions().userPermissions;
+    let permissions = app.getContext().getPermissions().userPermissions;
 
-    var sub_admin_list = Ext.Array.filter(permissions, function (p) {
+    let sub_admin_list = Ext.Array.filter(permissions, function (p) {
       return p.Role == 'Subscription Admin';
     });
 
@@ -180,20 +180,20 @@ Ext.define('TSUtilities', {
   },
 
   _currentUserCanWrite: function () {
-    var app = Rally.getApp();
+    let app = Rally.getApp();
 
     if (app.getContext().getUser().SubscriptionAdmin) {
       return true;
     }
 
-    var permissions = app.getContext().getPermissions().userPermissions;
+    let permissions = app.getContext().getPermissions().userPermissions;
 
-    var workspace_admin_list = Ext.Array.filter(permissions, function (p) {
+    let workspace_admin_list = Ext.Array.filter(permissions, function (p) {
       return p.Role == 'Workspace Admin' || p.Role == 'Subscription Admin';
     });
 
-    var current_workspace_ref = app.getContext().getWorkspace()._ref;
-    var can_unlock = false;
+    let current_workspace_ref = app.getContext().getWorkspace()._ref;
+    let can_unlock = false;
 
     if (workspace_admin_list.length > 0) {
       Ext.Array.each(workspace_admin_list, function (p) {
@@ -210,7 +210,7 @@ Ext.define('TSUtilities', {
     return this.currentUserIsAdmin();
   },
 
-  async currentUserIsTimeSheetAdmin() {
+  async getCurrentUserIsTimeSheetAdmin() {
     const users = await this.wrap(Ext.create(Rally.data.wsapi.RefsToRecords).convert([Rally.getApp().getContext().getUser()._ref])).catch(() => null);
 
     if (users && users.length) {
@@ -221,7 +221,7 @@ Ext.define('TSUtilities', {
   },
 
   fetchPortfolioItemTypes() {
-    var config = {
+    let config = {
       model: 'TypeDefinition',
       fetch: ['TypePath', 'Ordinal', 'Name'],
       filters: [{ property: 'TypePath', operator: 'contains', value: 'PortfolioItem/' }],
@@ -232,14 +232,14 @@ Ext.define('TSUtilities', {
   },
 
   fetchField: function (modelName, fieldName) {
-    var deferred = Ext.create('Deft.Deferred');
+    let deferred = Ext.create('Deft.Deferred');
     Rally.data.ModelFactory.getModel({
       type: modelName,
       success: function (model) {
         deferred.resolve(model.getField(fieldName));
       },
       failure: function () {
-        var error = 'Could not load schedule states';
+        let error = 'Could not load schedule states';
         deferred.reject(error);
       }
     });

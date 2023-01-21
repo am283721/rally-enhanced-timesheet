@@ -6,17 +6,17 @@ Ext.define('TSDateUtils', {
       weekStartDay = 0;
     }
 
-    var dayInWeek = week_date.getDay();
+    let dayInWeek = week_date.getDay();
     if (week_date.getUTCHours() === 0) {
       // already in UTC
       dayInWeek = week_date.getUTCDay();
     }
-    var delta = weekStartDay - dayInWeek;
+    let delta = weekStartDay - dayInWeek;
     if (dayInWeek < weekStartDay) {
       delta = weekStartDay - dayInWeek - 7;
     }
 
-    var start_of_week_here = Ext.Date.add(week_date, Ext.Date.DAY, delta);
+    let start_of_week_here = Ext.Date.add(week_date, Ext.Date.DAY, delta);
     return start_of_week_here;
   },
 
@@ -25,7 +25,7 @@ Ext.define('TSDateUtils', {
       weekStartDay = 0;
     }
 
-    var local_beginning = TSDateUtils.getBeginningOfWeekForLocalDate(week_date, weekStartDay);
+    let local_beginning = TSDateUtils.getBeginningOfWeekForLocalDate(week_date, weekStartDay);
 
     if (showShiftedTimeStamp) {
       return Rally.util.DateTime.toIsoString(local_beginning).replace(/T.*$/, 'T00:00:00.0Z');
@@ -38,7 +38,7 @@ Ext.define('TSDateUtils', {
   },
 
   formatShiftedDate: function (jsdate, format) {
-    var offset = jsdate.getTimezoneOffset(); // 480 is pacific, -330 is india
+    let offset = jsdate.getTimezoneOffset(); // 480 is pacific, -330 is india
 
     if (offset > 0) {
       jsdate = Rally.util.DateTime.add(jsdate, 'minute', offset);
@@ -48,24 +48,24 @@ Ext.define('TSDateUtils', {
   },
 
   pretendIMeantUTC: function (jsdate, asUTC) {
-    var offset = jsdate.getTimezoneOffset();
+    let offset = jsdate.getTimezoneOffset();
 
     if (asUTC) {
       return Rally.util.DateTime.toIsoString(jsdate).replace(/T.*$/, 'T00:00:00.000Z');
     }
-    var shiftedDate = Rally.util.DateTime.add(jsdate, 'minute', -1 * offset);
+    let shiftedDate = Rally.util.DateTime.add(jsdate, 'minute', -1 * offset);
 
     return shiftedDate;
   },
 
   // returns a promise, fulfills with a boolean
   isApproved: function (week_start_iso, user_oid) {
-    var deferred = Ext.create('Deft.Deferred');
+    let deferred = Ext.create('Deft.Deferred');
 
-    var short_iso_date = week_start_iso;
-    var key_user_oid = user_oid || Rally.getApp().getContext().getUser().ObjectID;
+    let short_iso_date = week_start_iso;
+    let key_user_oid = user_oid || Rally.getApp().getContext().getUser().ObjectID;
 
-    var key = Ext.String.format('{0}.{1}.{2}', TSUtilities.approvalKeyPrefix, short_iso_date, key_user_oid);
+    let key = Ext.String.format('{0}.{1}.{2}', TSUtilities.approvalKeyPrefix, short_iso_date, key_user_oid);
 
     this._loadWeekStatusPreference(key).then({
       success: function (preference) {
@@ -73,9 +73,9 @@ Ext.define('TSDateUtils', {
           deferred.resolve(false);
           return;
         }
-        var value = preference[0].get('Value');
+        let value = preference[0].get('Value');
         if (/{/.test(value)) {
-          var status_object = Ext.JSON.decode(value);
+          let status_object = Ext.JSON.decode(value);
           if (status_object.status == 'Approved') {
             deferred.resolve(true);
             return;
@@ -93,7 +93,7 @@ Ext.define('TSDateUtils', {
   },
 
   _loadWeekStatusPreference: function (key) {
-    var config = {
+    let config = {
       model: 'Preference',
       limit: 1,
       pageSize: 1,
