@@ -2,8 +2,8 @@
 <html>
 <head>
     <title>Rally Enhanced Timesheet</title>
-    <!--  Build Date: Sat Jan 21 2023 14:25:19 GMT+0100 (Central European Standard Time) -->
-    <!--  Version: "0.1.3"-->
+    <!--  Build Date: Sun Jan 22 2023 11:44:59 GMT-0500 (Eastern Standard Time) -->
+    <!--  Version: "0.2.0"-->
     <!--  Repository: "https:/github.com/am283721/rally-enhanced-timesheet"-->
     <script type="text/javascript" src="/apps/2.1/sdk-debug.js"></script>
 
@@ -2278,32 +2278,16 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     }
   ],
 
-  getWeekStartDates: function () {
-    let day_of_week = this.get('WeekStart');
-    let date_of_week = this.get('WeekStartDate');
-
-    if (day_of_week === 0) {
-      return [date_of_week];
-    }
-
-    let date1 = Rally.util.DateTime.add(date_of_week, 'day', -1 * day_of_week);
-    let date2 = Rally.util.DateTime.add(date1, 'day', 7);
-
-    return [date1, date2];
-  },
-
   save: function (v) {
     let me = this;
     let changes = this.getChanges();
     let promises = [];
-    // let week_start_date = this.get('WeekStartDate');
 
     Ext.Object.each(changes, function (field, value) {
       let value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(me.get('WeekStartDate'), me.get('WeekStart'), field);
-      //if ( value_date > new Date() ) { Rally.ui.notify.Notifier.showWarning({message: 'Warning: Creating Time in Future', timeout: 1000});  }
 
       if (Ext.Array.contains(CA.techservices.timesheet.TimeRowUtils.daysInOrder, field)) {
-        if (me._dateIsPrecedingMonth(value_date) || me._dateIsPrecedingWeek(value_date)) {
+        if (me._dateIsPrecedingMonth(value_date) || (me._dateIsPrecedingWeek(value_date) && !Rally.getApp().isTimeSheetAdmin())) {
           me._showClosedNotification();
         }
         promises.push(function () {
@@ -2341,9 +2325,6 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
 
   _showClosedNotification: function () {
     Rally.ui.notify.Notifier.showWarning({ message: 'Warning: Creating time entry in a closed period - registrations will not be transferred to SAP' });
-    setTimeout(function () {
-      Rally.ui.notify.Notifier.hide();
-    }, 6000);
   },
 
   _changeToDoValue: function (value) {
@@ -2654,8 +2635,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
               deferred.resolve(result);
             } else {
               me.set(day_name, 0);
-              console.log('Problem saving Time Entry Value:', day_name, operation);
-              //throw 'Problem saving time entry value';
+              console.error('Problem saving Time Entry Value:', day_name, operation);
+              Rally.getApp().showError(`'Problem saving Time Entry Value: ${day_name}`);
               deferred.reject(operation.error && operation.error.errors.join('.'));
             }
           }
@@ -2794,27 +2775,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _dateIsPrecedingWeek: function () {
-    let today = new Date();
-    let week_start_date = this.get('WeekStartDate');
-    if (today < week_start_date) {
-      return false;
-    }
-
-    if (today > Rally.util.DateTime.add(week_start_date, 'day', 8)) {
-      return true;
-    }
-    // if this is the first day of the following week, ok if it's before 12:05
-    if (today > Rally.util.DateTime.add(week_start_date, 'day', 7) && today < Rally.util.DateTime.add(week_start_date, 'day', 8)) {
-      if (today.getHours() > 12) {
-        return true;
-      }
-
-      if (today.getHours() === 12 && today.getMinutes() > 4) {
-        return true;
-      }
-    }
-
-    return false;
+    return new Date() > Rally.util.DateTime.add(this.get('WeekStartDate'), 'week', 1);
   },
 
   _dateIsPrecedingMonth: function (value_date) {
@@ -2887,6 +2848,7 @@ Ext.define('CA.techservices.TimeTable', {
     'ObjectID',
     'Name',
     'Release',
+    'ReleaseDate',
     'FormattedID',
     'Iteration',
     'ToDo',
@@ -3076,6 +3038,9 @@ Ext.define('CA.techservices.TimeTable', {
         xtype: 'rallyrecordmenuitem',
         text: 'Clear',
         record: record,
+        predicate: function () {
+          return me.editable;
+        },
         handler: function (menu) {
           let row = menu.record;
           if (0 < row.get('Total')) {
@@ -3453,16 +3418,6 @@ Ext.define('CA.techservices.TimeTable', {
 
     columns.push(state_config);
 
-    // columns.push({
-    //   dataIndex: 'Est',
-    //   text: 'Estimate',
-    //   sortable: true,
-    //   width: 50,
-    //   hidden: true,
-    //   menuDisabled: true,
-    //   editor: null
-    // });
-
     let todo_config = {
       dataIndex: 'ToDo',
       text: 'To Do',
@@ -3631,20 +3586,24 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _getColumnForDay: function (day, idx) {
-    let disabled = false;
+    let me = this;
     let today = new Date();
-    let end_date = Ext.Date.add(this.startDate, Ext.Date.DAY, 7);
+    let end_date = Rally.util.DateTime.add(this.startDate, 'week', 1);
     let indexToday = today.getDay();
     let weekdays = CA.techservices.timesheet.TimeRowUtils.getOrderedDaysBasedOnWeekStart(0);
+    let moment_utc_start = moment(this.startDate).utc();
+    let moment_utc_days_later = moment_utc_start.add(idx, 'day').utc();
+    let currentDayPlusPadding = Rally.util.DateTime.add(moment_utc_days_later.toDate(), 'hour', 12);
+    let header_text = Ext.String.format('{0}<br/>{1}', CA.techservices.timesheet.TimeRowUtils.dayShortNames[day], moment_utc_days_later.format('D MMM'));
 
     let editor_config = function (record) {
+      const release = (record.get && record.get('Release')) || record.Release;
       let minValue = 0;
       return Ext.create('Ext.grid.CellEditor', {
         field: Ext.create('Rally.ui.NumberField', {
-          xtype: 'rallynumberfield',
-          minValue: minValue,
+          minValue,
           maxValue: 36,
-          disabled: disabled,
+          disabled: !me.editable || (release && release.ReleaseDate && new Date(release.ReleaseDate) < currentDayPlusPadding && !Rally.getApp().isTimeSheetAdmin()),
           selectOnFocus: true
         }),
         listeners: {
@@ -3660,11 +3619,6 @@ Ext.define('CA.techservices.TimeTable', {
       });
     };
 
-    let moment_utc_start = moment(this.startDate).utc();
-    let moment_utc_days_later = moment_utc_start.add(idx, 'day').utc();
-
-    let header_text = Ext.String.format('{0}<br/>{1}', CA.techservices.timesheet.TimeRowUtils.dayShortNames[day], moment_utc_days_later.format('D MMM'));
-
     let config = {
       dataIndex: day,
       html: header_text,
@@ -3675,7 +3629,14 @@ Ext.define('CA.techservices.TimeTable', {
       getEditor: editor_config,
       field: 'test',
       summaryType: 'sum',
-      renderer: function (value) {
+      renderer: function (value, meta, record) {
+        const release = (record.get && record.get('Release')) || record.Release;
+        const shouldDisable = release && release.ReleaseDate && new Date(release.ReleaseDate) < currentDayPlusPadding && !Rally.getApp().isTimeSheetAdmin();
+
+        if (shouldDisable) {
+          meta.tdCls = 'ts-disabled-cell';
+        }
+
         if (value === 0) {
           return '';
         }
@@ -3703,6 +3664,14 @@ Ext.define('CA.techservices.TimeTable', {
     if (day === 'Saturday' || day === 'Sunday') {
       config.renderer = function (value, meta) {
         meta.tdCls = 'ts-weekend-cell';
+        if (value === 0) {
+          return '';
+        }
+        return value;
+      };
+    } else if (!me.editable) {
+      config.renderer = function (value, meta) {
+        meta.tdCls = 'ts-disabled-cell';
         if (value === 0) {
           return '';
         }
@@ -3827,7 +3796,12 @@ Ext.define('CA.techservices.TimeTable', {
         let tei = Ext.create(model, config);
         tei.save({
           fetch: me.time_entry_item_fetch,
-          callback: function (result) {
+          callback: function (result, operation, success) {
+            if (!success) {
+              Rally.getApp().showError(`Error creating Time Entry Item: ${operation.error?.errors?.join() || 'Unknown Error'}`);
+              return;
+            }
+
             let row = Ext.create('CA.techservices.timesheet.TimeRow', {
               WeekStartDate: me.startDate,
               TimeEntryItemRecords: [result],
@@ -3972,13 +3946,14 @@ Ext.define('CA.techservices.TimeTable', {
       weekStartsOn: 0,
       showAddMyStoriesButton: false,
       showEditTimeDetailsMenuItem: false,
-      showTaskStateFilter: false
+      showTaskStateFilter: false,
+      timesheetSupportEmail: ''
     }
   },
 
   async launch() {
     try {
-      this.isTimeSheetAdmin = await TSUtilities.getCurrentUserIsTimeSheetAdmin();
+      this.currentUserTimeSheetAdmin = await TSUtilities.getCurrentUserIsTimeSheetAdmin();
       this.portfolioItemTypes = await TSUtilities.fetchPortfolioItemTypes();
       this._addSelectors(this.down('#selector_box'));
     } catch (e) {
@@ -4014,6 +3989,12 @@ Ext.define('CA.techservices.TimeTable', {
           },
           scope: this
         }
+      });
+    } else {
+      adminContainer.add({
+        xtype: 'container',
+        itemId: 'messageContainer',
+        tpl: '<tpl if="msg"><div>{msg}</div></tpl>'
       });
     }
 
@@ -4060,7 +4041,7 @@ Ext.define('CA.techservices.TimeTable', {
     if (this.getSetting('showAddMyStoriesButton')) {
       container.add({
         xtype: 'rallybutton',
-        text: '+ my <span class="icon-story"> </span>',
+        text: 'Add My Stories',
         toolTipText: 'Add my stories and stories with my tasks',
         disabled: false,
         listeners: {
@@ -4144,7 +4125,8 @@ Ext.define('CA.techservices.TimeTable', {
 
     let current_filters = Rally.data.wsapi.Filter.and([
       { property: 'Iteration.StartDate', operator: '<=', value: Rally.util.DateTime.toIsoString(this.startDate) },
-      { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) }
+      { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) },
+      { property: 'Release.ReleaseDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) }
     ]);
 
     let config = {
@@ -4194,15 +4176,16 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _addDefaults: function () {
-    let timetable = this.down('tstimetable'),
-      me = this;
+    let timetable = this.down('tstimetable');
+    let me = this;
+
     if (!timetable) {
       return;
     }
 
     let defaults = timetable.time_entry_defaults;
-
     let promises = [];
+
     this.setLoading('Finding my defaults...');
 
     Ext.Object.each(defaults, function (oid, type) {
@@ -4218,7 +4201,7 @@ Ext.define('CA.techservices.TimeTable', {
           context: {
             project: null
           },
-          fetch: ['ObjectID', 'Name', 'FormattedID', 'WorkProduct', 'Project'],
+          fetch: ['ObjectID', 'Name', 'FormattedID', 'WorkProduct', 'Project', 'Release', 'ReleaseDate'],
           filters: [{ property: 'ObjectID', value: oid }]
         };
 
@@ -4233,7 +4216,11 @@ Ext.define('CA.techservices.TimeTable', {
               me.setLoading(false);
             } else {
               Ext.Array.each(items, function (task) {
-                timetable.addRowForItem(task);
+                if (me.recordIsInPastRelease(task) && !me.isTimeSheetAdmin()) {
+                  me.showError(`${task.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
+                } else {
+                  timetable.addRowForItem(task);
+                }
               });
             }
 
@@ -4273,6 +4260,7 @@ Ext.define('CA.techservices.TimeTable', {
         { property: 'Owner.ObjectID', value: this.getContext().getUser().ObjectID },
         { property: 'Iteration.StartDate', operator: '<=', value: Rally.util.DateTime.toIsoString(this.startDate) },
         { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) },
+        { property: 'Release.ReleaseDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) },
         { property: 'State', operator: '!=', value: 'Completed' }
       ]
     };
@@ -4307,7 +4295,16 @@ Ext.define('CA.techservices.TimeTable', {
     let me = this;
     let timetable = this.down('tstimetable');
     let filters = [{ property: 'State', operator: '!=', value: 'Completed' }];
-    let fetch_fields = ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID'];
+    let fetch_fields = ['WorkProduct', 'Feature', 'Release', 'ReleaseDate', 'Project', 'Name', 'FormattedID', 'ObjectID'];
+    let title = 'Choose Task(s)';
+
+    if (!this.isTimeSheetAdmin()) {
+      let releaseFilter = Ext.create('Rally.data.QueryFilter', { property: 'Release.ReleaseDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) });
+      releaseFilter = releaseFilter.or({ property: 'Release', value: null });
+      filters.push(releaseFilter);
+
+      title += ' - Tasks in past Releases will not be shown';
+    }
 
     if (timetable) {
       Ext.create('Rally.technicalservices.ChooserDialog', {
@@ -4315,7 +4312,7 @@ Ext.define('CA.techservices.TimeTable', {
         autoShow: true,
         multiple: true,
         width: 1500,
-        title: 'Choose Task(s)',
+        title,
         context: {
           project: null
         },
@@ -4375,7 +4372,11 @@ Ext.define('CA.techservices.TimeTable', {
               Ext.Msg.alert('Problem Adding Tasks', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
             } else {
               Ext.Array.each(selectedRecords, function (selectedRecord) {
-                timetable.addRowForItem(selectedRecord);
+                if (me.recordIsInPastRelease(selectedRecord) && !me.isTimeSheetAdmin()) {
+                  me.showError(`${selectedRecord.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
+                } else {
+                  timetable.addRowForItem(selectedRecord);
+                }
               });
             }
           },
@@ -4387,18 +4388,26 @@ Ext.define('CA.techservices.TimeTable', {
 
   _findAndAddStory: function () {
     let me = this;
+    let title = 'Choose Work Product(s)';
     let timetable = this.down('tstimetable');
     let filters = Ext.create('Rally.data.QueryFilter', { property: 'ScheduleState', operator: '=', value: 'Requested' });
     filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'Defined' });
     filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'In-Progress' });
     filters = filters.and({ property: 'DirectChildrenCount', operator: '=', value: 0 });
-    filters.toString();
+
+    if (!this.isTimeSheetAdmin()) {
+      let releaseFilter = Ext.create('Rally.data.QueryFilter', { property: 'Release.ReleaseDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) });
+      releaseFilter = releaseFilter.or({ property: 'Release', value: null });
+      filters = filters.and(releaseFilter);
+
+      title += ' - Stories in past Releases will not be shown';
+    }
 
     if (timetable) {
       Ext.create('Rally.technicalservices.ChooserDialog', {
         artifactTypes: ['hierarchicalrequirement', 'defect'],
         autoShow: true,
-        title: 'Choose Work Product(s)',
+        title,
         multiple: true,
         width: 1500,
         storeConfig: {
@@ -4450,7 +4459,7 @@ Ext.define('CA.techservices.TimeTable', {
               Ext.Msg.alert('Problem Adding Stories', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
             } else {
               Ext.Array.each(selectedRecords, function (selectedRecord) {
-                if (selectedRecord.get('Release') && new Date(selectedRecord.get('Release').ReleaseDate) < new Date() && !me.isTimeSheetAdmin()) {
+                if (me.recordIsInPastRelease(selectedRecord) && !me.isTimeSheetAdmin()) {
                   me.showError(`${selectedRecord.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
                 } else {
                   timetable.addRowForItem(selectedRecord);
@@ -4467,18 +4476,41 @@ Ext.define('CA.techservices.TimeTable', {
   updateData: function () {
     let timesheetUser;
     let timetable = this.down('tstimetable');
+    let selectedUser = this.down('#userCombo') && this.down('#userCombo').getRecord();
+    this.startDate = this.down('#date_selector').getValue();
+    const isPastTimeSheet = new Date() > Rally.util.DateTime.add(this.startDate, 'week', 1);
+    const editable = !isPastTimeSheet || this.isTimeSheetAdmin();
+    const messageContainer = this.down('#messageContainer');
 
     if (!Ext.isEmpty(timetable)) {
       timetable.destroy();
     }
 
-    if (this.down('#userCombo') && this.down('#userCombo').getRecord()) {
-      timesheetUser = this.down('#userCombo').getRecord().getData();
+    if (selectedUser && selectedUser.get('ObjectID')) {
+      timesheetUser = selectedUser.getData();
+    } else {
+      timesheetUser = this.getContext().getUser();
     }
 
-    this.startDate = this.down('#date_selector').getValue();
+    if (messageContainer) {
+      if (editable) {
+        messageContainer.update({ msg: '' });
+      } else {
+        let msg = 'The selected timesheet is in the past and cannot be edited';
 
-    let editable = true;
+        if (this.getSetting('timesheetSupportEmail')) {
+          msg += `. For timesheet adjustments, please contact ${this.getSetting('timesheetSupportEmail')}`;
+        }
+
+        messageContainer.update({ msg });
+      }
+    }
+
+    if (editable) {
+      this.down('#add_button_box').show();
+    } else {
+      this.down('#add_button_box').hide();
+    }
 
     this.time_table = this.add({
       xtype: 'tstimetable',
@@ -4491,9 +4523,9 @@ Ext.define('CA.techservices.TimeTable', {
       sortDirection: this.sortDirection,
       lowestLevelPIName: this._getLowestLevelPIName(),
       startDate: this.startDate,
-      editable: editable,
+      editable,
       maxRows: this.getSetting('maxRows'),
-      showEditTimeDetailsMenuItem: this.getSetting('showEditTimeDetailsMenuItem'),
+      showEditTimeDetailsMenuItem: false,
       listeners: {
         scope: this,
         gridReady: function () {
@@ -4509,11 +4541,16 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   isTimeSheetAdmin() {
-    return this.isTimeSheetAdmin;
+    return this.currentUserTimeSheetAdmin;
+  },
+
+  recordIsInPastRelease(story) {
+    return story.get('Release') && new Date(story.get('Release').ReleaseDate) < this.startDate;
   },
 
   getSettingsFields: function () {
     let check_box_margins = '5 0 5 0';
+    const config = { labelWidth: 175, width: 350 };
 
     let days_of_week = [
       { Name: 'Sunday', Value: 0 },
@@ -4527,12 +4564,11 @@ Ext.define('CA.techservices.TimeTable', {
 
     return [
       {
+        ...config,
         name: 'weekStartsOn',
         xtype: 'rallycombobox',
         fieldLabel: 'Week Starts On',
-        labelWidth: 100,
         labelAlign: 'left',
-        minWidth: 200,
         displayField: 'Name',
         valueField: 'Value',
         value: this.getSetting('weekStartsOn'),
@@ -4541,6 +4577,22 @@ Ext.define('CA.techservices.TimeTable', {
         }),
 
         readyEvent: 'ready'
+      },
+      {
+        ...config,
+        xtype: 'rallynumberfield',
+        name: 'maxRows',
+        labelAlign: 'left',
+        maxValue: 1000,
+        minValue: 10,
+        fieldLabel: 'Maximum number of rows',
+        value: this.getSetting('maxRows') || 100
+      },
+      {
+        ...config,
+        xtype: 'rallytextfield',
+        name: 'timesheetSupportEmail',
+        fieldLabel: 'Timesheet Support Email'
       },
       {
         name: 'showTaskStateFilter',
@@ -4558,25 +4610,6 @@ Ext.define('CA.techservices.TimeTable', {
         margin: check_box_margins,
         boxLabel:
           'Show the Add My Stories Button<br/><span style="color:#999999;"><i>User can add stories in a current sprint that they own or that have tasks they own (does not look for default items).</i></span>'
-      },
-      {
-        name: 'showEditTimeDetailsMenuItem',
-        xtype: 'rallycheckboxfield',
-        boxLabelAlign: 'after',
-        fieldLabel: '',
-        margin: check_box_margins,
-        boxLabel: 'Include Time Details Option in Menu (Experimental)<br/><span style="color:#999999;"><i>User can enter time ranges during the day to calculate time entry. </i></span>'
-      },
-      {
-        xtype: 'rallynumberfield',
-        name: 'maxRows',
-        labelWidth: 100,
-        labelAlign: 'left',
-        width: 200,
-        maxValue: 1000,
-        minValue: 10,
-        fieldLabel: 'Maximum number of rows',
-        value: this.getSetting('maxRows') || 100
       }
     ];
   },
@@ -4632,7 +4665,7 @@ Ext.define('CA.techservices.TimeTable', {
             Rally.launchApp('TSTimesheet', {
                 name:"Rally Enhanced Timesheet",
                 parentRepos:"",
-                version:"0.1.3"
+                version:"0.2.0"
             });
 
         });
@@ -4656,7 +4689,8 @@ Ext.define('CA.techservices.TimeTable', {
   color: red !important;
   background-color: white !important ;
 }
-td.ts-total-cell {
+td.ts-total-cell,
+td.ts-disabled-cell {
   background-color: #eee !important;
 }
 .x-grid-row-summary {
@@ -4677,6 +4711,10 @@ span.red {
 td.ts-right-border {
   border-style: solid;
   border-right: thick double #aaa;
+}
+.x-item-disabled,
+.x-item-disabled * {
+  cursor: not-allowed !important;
 }
 
     </style>

@@ -20,13 +20,14 @@ Ext.define('TSTimesheet', {
       weekStartsOn: 0,
       showAddMyStoriesButton: false,
       showEditTimeDetailsMenuItem: false,
-      showTaskStateFilter: false
+      showTaskStateFilter: false,
+      timesheetSupportEmail: ''
     }
   },
 
   async launch() {
     try {
-      this.isTimeSheetAdmin = await TSUtilities.getCurrentUserIsTimeSheetAdmin();
+      this.currentUserTimeSheetAdmin = await TSUtilities.getCurrentUserIsTimeSheetAdmin();
       this.portfolioItemTypes = await TSUtilities.fetchPortfolioItemTypes();
       this._addSelectors(this.down('#selector_box'));
     } catch (e) {
@@ -62,6 +63,12 @@ Ext.define('TSTimesheet', {
           },
           scope: this
         }
+      });
+    } else {
+      adminContainer.add({
+        xtype: 'container',
+        itemId: 'messageContainer',
+        tpl: '<tpl if="msg"><div>{msg}</div></tpl>'
       });
     }
 
@@ -108,7 +115,7 @@ Ext.define('TSTimesheet', {
     if (this.getSetting('showAddMyStoriesButton')) {
       container.add({
         xtype: 'rallybutton',
-        text: '+ my <span class="icon-story"> </span>',
+        text: 'Add My Stories',
         toolTipText: 'Add my stories and stories with my tasks',
         disabled: false,
         listeners: {
@@ -192,7 +199,8 @@ Ext.define('TSTimesheet', {
 
     let current_filters = Rally.data.wsapi.Filter.and([
       { property: 'Iteration.StartDate', operator: '<=', value: Rally.util.DateTime.toIsoString(this.startDate) },
-      { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) }
+      { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) },
+      { property: 'Release.ReleaseDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) }
     ]);
 
     let config = {
@@ -242,15 +250,16 @@ Ext.define('TSTimesheet', {
   },
 
   _addDefaults: function () {
-    let timetable = this.down('tstimetable'),
-      me = this;
+    let timetable = this.down('tstimetable');
+    let me = this;
+
     if (!timetable) {
       return;
     }
 
     let defaults = timetable.time_entry_defaults;
-
     let promises = [];
+
     this.setLoading('Finding my defaults...');
 
     Ext.Object.each(defaults, function (oid, type) {
@@ -266,7 +275,7 @@ Ext.define('TSTimesheet', {
           context: {
             project: null
           },
-          fetch: ['ObjectID', 'Name', 'FormattedID', 'WorkProduct', 'Project'],
+          fetch: ['ObjectID', 'Name', 'FormattedID', 'WorkProduct', 'Project', 'Release', 'ReleaseDate'],
           filters: [{ property: 'ObjectID', value: oid }]
         };
 
@@ -281,7 +290,11 @@ Ext.define('TSTimesheet', {
               me.setLoading(false);
             } else {
               Ext.Array.each(items, function (task) {
-                timetable.addRowForItem(task);
+                if (me.recordIsInPastRelease(task) && !me.isTimeSheetAdmin()) {
+                  me.showError(`${task.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
+                } else {
+                  timetable.addRowForItem(task);
+                }
               });
             }
 
@@ -321,6 +334,7 @@ Ext.define('TSTimesheet', {
         { property: 'Owner.ObjectID', value: this.getContext().getUser().ObjectID },
         { property: 'Iteration.StartDate', operator: '<=', value: Rally.util.DateTime.toIsoString(this.startDate) },
         { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) },
+        { property: 'Release.ReleaseDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) },
         { property: 'State', operator: '!=', value: 'Completed' }
       ]
     };
@@ -355,7 +369,16 @@ Ext.define('TSTimesheet', {
     let me = this;
     let timetable = this.down('tstimetable');
     let filters = [{ property: 'State', operator: '!=', value: 'Completed' }];
-    let fetch_fields = ['WorkProduct', 'Feature', 'Project', 'Name', 'FormattedID', 'ObjectID'];
+    let fetch_fields = ['WorkProduct', 'Feature', 'Release', 'ReleaseDate', 'Project', 'Name', 'FormattedID', 'ObjectID'];
+    let title = 'Choose Task(s)';
+
+    if (!this.isTimeSheetAdmin()) {
+      let releaseFilter = Ext.create('Rally.data.QueryFilter', { property: 'Release.ReleaseDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) });
+      releaseFilter = releaseFilter.or({ property: 'Release', value: null });
+      filters.push(releaseFilter);
+
+      title += ' - Tasks in past Releases will not be shown';
+    }
 
     if (timetable) {
       Ext.create('Rally.technicalservices.ChooserDialog', {
@@ -363,7 +386,7 @@ Ext.define('TSTimesheet', {
         autoShow: true,
         multiple: true,
         width: 1500,
-        title: 'Choose Task(s)',
+        title,
         context: {
           project: null
         },
@@ -423,7 +446,11 @@ Ext.define('TSTimesheet', {
               Ext.Msg.alert('Problem Adding Tasks', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
             } else {
               Ext.Array.each(selectedRecords, function (selectedRecord) {
-                timetable.addRowForItem(selectedRecord);
+                if (me.recordIsInPastRelease(selectedRecord) && !me.isTimeSheetAdmin()) {
+                  me.showError(`${selectedRecord.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
+                } else {
+                  timetable.addRowForItem(selectedRecord);
+                }
               });
             }
           },
@@ -435,18 +462,26 @@ Ext.define('TSTimesheet', {
 
   _findAndAddStory: function () {
     let me = this;
+    let title = 'Choose Work Product(s)';
     let timetable = this.down('tstimetable');
     let filters = Ext.create('Rally.data.QueryFilter', { property: 'ScheduleState', operator: '=', value: 'Requested' });
     filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'Defined' });
     filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'In-Progress' });
     filters = filters.and({ property: 'DirectChildrenCount', operator: '=', value: 0 });
-    filters.toString();
+
+    if (!this.isTimeSheetAdmin()) {
+      let releaseFilter = Ext.create('Rally.data.QueryFilter', { property: 'Release.ReleaseDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) });
+      releaseFilter = releaseFilter.or({ property: 'Release', value: null });
+      filters = filters.and(releaseFilter);
+
+      title += ' - Stories in past Releases will not be shown';
+    }
 
     if (timetable) {
       Ext.create('Rally.technicalservices.ChooserDialog', {
         artifactTypes: ['hierarchicalrequirement', 'defect'],
         autoShow: true,
-        title: 'Choose Work Product(s)',
+        title,
         multiple: true,
         width: 1500,
         storeConfig: {
@@ -498,7 +533,7 @@ Ext.define('TSTimesheet', {
               Ext.Msg.alert('Problem Adding Stories', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
             } else {
               Ext.Array.each(selectedRecords, function (selectedRecord) {
-                if (selectedRecord.get('Release') && new Date(selectedRecord.get('Release').ReleaseDate) < new Date() && !me.isTimeSheetAdmin()) {
+                if (me.recordIsInPastRelease(selectedRecord) && !me.isTimeSheetAdmin()) {
                   me.showError(`${selectedRecord.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
                 } else {
                   timetable.addRowForItem(selectedRecord);
@@ -515,18 +550,41 @@ Ext.define('TSTimesheet', {
   updateData: function () {
     let timesheetUser;
     let timetable = this.down('tstimetable');
+    let selectedUser = this.down('#userCombo') && this.down('#userCombo').getRecord();
+    this.startDate = this.down('#date_selector').getValue();
+    const isPastTimeSheet = new Date() > Rally.util.DateTime.add(this.startDate, 'week', 1);
+    const editable = !isPastTimeSheet || this.isTimeSheetAdmin();
+    const messageContainer = this.down('#messageContainer');
 
     if (!Ext.isEmpty(timetable)) {
       timetable.destroy();
     }
 
-    if (this.down('#userCombo') && this.down('#userCombo').getRecord()) {
-      timesheetUser = this.down('#userCombo').getRecord().getData();
+    if (selectedUser && selectedUser.get('ObjectID')) {
+      timesheetUser = selectedUser.getData();
+    } else {
+      timesheetUser = this.getContext().getUser();
     }
 
-    this.startDate = this.down('#date_selector').getValue();
+    if (messageContainer) {
+      if (editable) {
+        messageContainer.update({ msg: '' });
+      } else {
+        let msg = 'The selected timesheet is in the past and cannot be edited';
 
-    let editable = true;
+        if (this.getSetting('timesheetSupportEmail')) {
+          msg += `. For timesheet adjustments, please contact ${this.getSetting('timesheetSupportEmail')}`;
+        }
+
+        messageContainer.update({ msg });
+      }
+    }
+
+    if (editable) {
+      this.down('#add_button_box').show();
+    } else {
+      this.down('#add_button_box').hide();
+    }
 
     this.time_table = this.add({
       xtype: 'tstimetable',
@@ -539,9 +597,9 @@ Ext.define('TSTimesheet', {
       sortDirection: this.sortDirection,
       lowestLevelPIName: this._getLowestLevelPIName(),
       startDate: this.startDate,
-      editable: editable,
+      editable,
       maxRows: this.getSetting('maxRows'),
-      showEditTimeDetailsMenuItem: this.getSetting('showEditTimeDetailsMenuItem'),
+      showEditTimeDetailsMenuItem: false,
       listeners: {
         scope: this,
         gridReady: function () {
@@ -557,11 +615,16 @@ Ext.define('TSTimesheet', {
   },
 
   isTimeSheetAdmin() {
-    return this.isTimeSheetAdmin;
+    return this.currentUserTimeSheetAdmin;
+  },
+
+  recordIsInPastRelease(story) {
+    return story.get('Release') && new Date(story.get('Release').ReleaseDate) < this.startDate;
   },
 
   getSettingsFields: function () {
     let check_box_margins = '5 0 5 0';
+    const config = { labelWidth: 175, width: 350 };
 
     let days_of_week = [
       { Name: 'Sunday', Value: 0 },
@@ -575,12 +638,11 @@ Ext.define('TSTimesheet', {
 
     return [
       {
+        ...config,
         name: 'weekStartsOn',
         xtype: 'rallycombobox',
         fieldLabel: 'Week Starts On',
-        labelWidth: 100,
         labelAlign: 'left',
-        minWidth: 200,
         displayField: 'Name',
         valueField: 'Value',
         value: this.getSetting('weekStartsOn'),
@@ -589,6 +651,22 @@ Ext.define('TSTimesheet', {
         }),
 
         readyEvent: 'ready'
+      },
+      {
+        ...config,
+        xtype: 'rallynumberfield',
+        name: 'maxRows',
+        labelAlign: 'left',
+        maxValue: 1000,
+        minValue: 10,
+        fieldLabel: 'Maximum number of rows',
+        value: this.getSetting('maxRows') || 100
+      },
+      {
+        ...config,
+        xtype: 'rallytextfield',
+        name: 'timesheetSupportEmail',
+        fieldLabel: 'Timesheet Support Email'
       },
       {
         name: 'showTaskStateFilter',
@@ -606,25 +684,6 @@ Ext.define('TSTimesheet', {
         margin: check_box_margins,
         boxLabel:
           'Show the Add My Stories Button<br/><span style="color:#999999;"><i>User can add stories in a current sprint that they own or that have tasks they own (does not look for default items).</i></span>'
-      },
-      {
-        name: 'showEditTimeDetailsMenuItem',
-        xtype: 'rallycheckboxfield',
-        boxLabelAlign: 'after',
-        fieldLabel: '',
-        margin: check_box_margins,
-        boxLabel: 'Include Time Details Option in Menu (Experimental)<br/><span style="color:#999999;"><i>User can enter time ranges during the day to calculate time entry. </i></span>'
-      },
-      {
-        xtype: 'rallynumberfield',
-        name: 'maxRows',
-        labelWidth: 100,
-        labelAlign: 'left',
-        width: 200,
-        maxValue: 1000,
-        minValue: 10,
-        fieldLabel: 'Maximum number of rows',
-        value: this.getSetting('maxRows') || 100
       }
     ];
   },

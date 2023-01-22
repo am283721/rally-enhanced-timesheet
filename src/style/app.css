@@ -16,7 +16,7 @@
     background-color: white !important ;
 }
 
-td.ts-total-cell {
+td.ts-total-cell, td.ts-disabled-cell {
     background-color: #eee !important;
 }
 
@@ -43,4 +43,8 @@ span.red {
 td.ts-right-border {
     border-style: solid;
     border-right: thick double #aaa;
+}
+
+.x-item-disabled, .x-item-disabled * {
+    cursor: not-allowed !important;
 }

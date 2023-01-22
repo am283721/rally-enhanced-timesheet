@@ -562,32 +562,16 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     }
   ],
 
-  getWeekStartDates: function () {
-    let day_of_week = this.get('WeekStart');
-    let date_of_week = this.get('WeekStartDate');
-
-    if (day_of_week === 0) {
-      return [date_of_week];
-    }
-
-    let date1 = Rally.util.DateTime.add(date_of_week, 'day', -1 * day_of_week);
-    let date2 = Rally.util.DateTime.add(date1, 'day', 7);
-
-    return [date1, date2];
-  },
-
   save: function (v) {
     let me = this;
     let changes = this.getChanges();
     let promises = [];
-    // let week_start_date = this.get('WeekStartDate');
 
     Ext.Object.each(changes, function (field, value) {
       let value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(me.get('WeekStartDate'), me.get('WeekStart'), field);
-      //if ( value_date > new Date() ) { Rally.ui.notify.Notifier.showWarning({message: 'Warning: Creating Time in Future', timeout: 1000});  }
 
       if (Ext.Array.contains(CA.techservices.timesheet.TimeRowUtils.daysInOrder, field)) {
-        if (me._dateIsPrecedingMonth(value_date) || me._dateIsPrecedingWeek(value_date)) {
+        if (me._dateIsPrecedingMonth(value_date) || (me._dateIsPrecedingWeek(value_date) && !Rally.getApp().isTimeSheetAdmin())) {
           me._showClosedNotification();
         }
         promises.push(function () {
@@ -625,9 +609,6 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
 
   _showClosedNotification: function () {
     Rally.ui.notify.Notifier.showWarning({ message: 'Warning: Creating time entry in a closed period - registrations will not be transferred to SAP' });
-    setTimeout(function () {
-      Rally.ui.notify.Notifier.hide();
-    }, 6000);
   },
 
   _changeToDoValue: function (value) {
@@ -938,8 +919,8 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
               deferred.resolve(result);
             } else {
               me.set(day_name, 0);
-              console.log('Problem saving Time Entry Value:', day_name, operation);
-              //throw 'Problem saving time entry value';
+              console.error('Problem saving Time Entry Value:', day_name, operation);
+              Rally.getApp().showError(`'Problem saving Time Entry Value: ${day_name}`);
               deferred.reject(operation.error && operation.error.errors.join('.'));
             }
           }
@@ -1078,27 +1059,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
   },
 
   _dateIsPrecedingWeek: function () {
-    let today = new Date();
-    let week_start_date = this.get('WeekStartDate');
-    if (today < week_start_date) {
-      return false;
-    }
-
-    if (today > Rally.util.DateTime.add(week_start_date, 'day', 8)) {
-      return true;
-    }
-    // if this is the first day of the following week, ok if it's before 12:05
-    if (today > Rally.util.DateTime.add(week_start_date, 'day', 7) && today < Rally.util.DateTime.add(week_start_date, 'day', 8)) {
-      if (today.getHours() > 12) {
-        return true;
-      }
-
-      if (today.getHours() === 12 && today.getMinutes() > 4) {
-        return true;
-      }
-    }
-
-    return false;
+    return new Date() > Rally.util.DateTime.add(this.get('WeekStartDate'), 'week', 1);
   },
 
   _dateIsPrecedingMonth: function (value_date) {

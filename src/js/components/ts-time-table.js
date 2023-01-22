@@ -21,6 +21,7 @@ Ext.define('CA.techservices.TimeTable', {
     'ObjectID',
     'Name',
     'Release',
+    'ReleaseDate',
     'FormattedID',
     'Iteration',
     'ToDo',
@@ -210,6 +211,9 @@ Ext.define('CA.techservices.TimeTable', {
         xtype: 'rallyrecordmenuitem',
         text: 'Clear',
         record: record,
+        predicate: function () {
+          return me.editable;
+        },
         handler: function (menu) {
           let row = menu.record;
           if (0 < row.get('Total')) {
@@ -587,16 +591,6 @@ Ext.define('CA.techservices.TimeTable', {
 
     columns.push(state_config);
 
-    // columns.push({
-    //   dataIndex: 'Est',
-    //   text: 'Estimate',
-    //   sortable: true,
-    //   width: 50,
-    //   hidden: true,
-    //   menuDisabled: true,
-    //   editor: null
-    // });
-
     let todo_config = {
       dataIndex: 'ToDo',
       text: 'To Do',
@@ -765,20 +759,24 @@ Ext.define('CA.techservices.TimeTable', {
   },
 
   _getColumnForDay: function (day, idx) {
-    let disabled = false;
+    let me = this;
     let today = new Date();
-    let end_date = Ext.Date.add(this.startDate, Ext.Date.DAY, 7);
+    let end_date = Rally.util.DateTime.add(this.startDate, 'week', 1);
     let indexToday = today.getDay();
     let weekdays = CA.techservices.timesheet.TimeRowUtils.getOrderedDaysBasedOnWeekStart(0);
+    let moment_utc_start = moment(this.startDate).utc();
+    let moment_utc_days_later = moment_utc_start.add(idx, 'day').utc();
+    let currentDayPlusPadding = Rally.util.DateTime.add(moment_utc_days_later.toDate(), 'hour', 12);
+    let header_text = Ext.String.format('{0}<br/>{1}', CA.techservices.timesheet.TimeRowUtils.dayShortNames[day], moment_utc_days_later.format('D MMM'));
 
     let editor_config = function (record) {
+      const release = (record.get && record.get('Release')) || record.Release;
       let minValue = 0;
       return Ext.create('Ext.grid.CellEditor', {
         field: Ext.create('Rally.ui.NumberField', {
-          xtype: 'rallynumberfield',
-          minValue: minValue,
+          minValue,
           maxValue: 36,
-          disabled: disabled,
+          disabled: !me.editable || (release && release.ReleaseDate && new Date(release.ReleaseDate) < currentDayPlusPadding && !Rally.getApp().isTimeSheetAdmin()),
           selectOnFocus: true
         }),
         listeners: {
@@ -794,11 +792,6 @@ Ext.define('CA.techservices.TimeTable', {
       });
     };
 
-    let moment_utc_start = moment(this.startDate).utc();
-    let moment_utc_days_later = moment_utc_start.add(idx, 'day').utc();
-
-    let header_text = Ext.String.format('{0}<br/>{1}', CA.techservices.timesheet.TimeRowUtils.dayShortNames[day], moment_utc_days_later.format('D MMM'));
-
     let config = {
       dataIndex: day,
       html: header_text,
@@ -809,7 +802,14 @@ Ext.define('CA.techservices.TimeTable', {
       getEditor: editor_config,
       field: 'test',
       summaryType: 'sum',
-      renderer: function (value) {
+      renderer: function (value, meta, record) {
+        const release = (record.get && record.get('Release')) || record.Release;
+        const shouldDisable = release && release.ReleaseDate && new Date(release.ReleaseDate) < currentDayPlusPadding && !Rally.getApp().isTimeSheetAdmin();
+
+        if (shouldDisable) {
+          meta.tdCls = 'ts-disabled-cell';
+        }
+
         if (value === 0) {
           return '';
         }
@@ -837,6 +837,14 @@ Ext.define('CA.techservices.TimeTable', {
     if (day === 'Saturday' || day === 'Sunday') {
       config.renderer = function (value, meta) {
         meta.tdCls = 'ts-weekend-cell';
+        if (value === 0) {
+          return '';
+        }
+        return value;
+      };
+    } else if (!me.editable) {
+      config.renderer = function (value, meta) {
+        meta.tdCls = 'ts-disabled-cell';
         if (value === 0) {
           return '';
         }
@@ -961,7 +969,12 @@ Ext.define('CA.techservices.TimeTable', {
         let tei = Ext.create(model, config);
         tei.save({
           fetch: me.time_entry_item_fetch,
-          callback: function (result) {
+          callback: function (result, operation, success) {
+            if (!success) {
+              Rally.getApp().showError(`Error creating Time Entry Item: ${operation.error?.errors?.join() || 'Unknown Error'}`);
+              return;
+            }
+
             let row = Ext.create('CA.techservices.timesheet.TimeRow', {
               WeekStartDate: me.startDate,
               TimeEntryItemRecords: [result],
