@@ -37,6 +37,7 @@ Ext.define('CA.techservices.TimeTable', {
     startDate: null,
     editable: true,
     timesheetUser: null,
+    hasItemsInPastReleases: false,
     pinKey: 'CA.techservices.timesheet.pin',
     showEditTimeDetailsMenuItem: false,
     pickableColumns: null,
@@ -70,7 +71,7 @@ Ext.define('CA.techservices.TimeTable', {
     );
 
     if (Ext.isEmpty(this.timesheetUser)) {
-      this.timesheetUser = Rally.getApp().getContext().getUser();
+      this.timesheetUser = Rally.getApp().getCurrentUser();
     }
     // shift start date
     this.startDate = TSDateUtils.pretendIMeantUTC(this.startDate);
@@ -118,7 +119,7 @@ Ext.define('CA.techservices.TimeTable', {
     let deferred = Ext.create('Deft.Deferred');
 
     Rally.data.PreferenceManager.load({
-      filterByUser: true,
+      filterByUser: this.timesheetUser._ref,
       additionalFilters: [{ property: 'Name', operator: 'contains', value: this.pinKey }],
 
       success: function (prefs) {
@@ -137,16 +138,16 @@ Ext.define('CA.techservices.TimeTable', {
 
   _makeGrid: function (rows) {
     this.removeAll();
-    let me = this,
-      table_store = Ext.create('Rally.data.custom.Store', {
-        model: 'CA.techservices.timesheet.TimeRow',
-        data: rows,
-        pageSize: me.maxRows,
-        remoteSort: false,
-        sortOnFither: true,
-        sortOnLoad: true,
-        sorters: [{ property: this.sortedColumn, direction: this.sortDirection }]
-      });
+    let me = this;
+    let table_store = Ext.create('Rally.data.custom.Store', {
+      model: 'CA.techservices.timesheet.TimeRow',
+      data: rows,
+      pageSize: me.maxRows,
+      remoteSort: false,
+      sortOnFither: true,
+      sortOnLoad: true,
+      sorters: [{ property: this.sortedColumn, direction: this.sortDirection }]
+    });
 
     this.grid = this.add({
       xtype: 'rallygrid',
@@ -168,6 +169,9 @@ Ext.define('CA.techservices.TimeTable', {
           this.sortedColumn = column.dataIndex;
           this.sortDirection = direction;
           me.fireEvent('sortchange', this, column.dataIndex, direction);
+        },
+        viewready: function () {
+          me.addWarningIfPreviousWorkExists(me);
         }
       },
       viewConfig: {
@@ -733,8 +737,8 @@ Ext.define('CA.techservices.TimeTable', {
     settings[key] = Ext.JSON.encode(value);
 
     Rally.data.PreferenceManager.update({
-      user: Rally.getApp().getContext().getUser().ObjectID,
-      filterByUser: true,
+      user: this.timesheetUser.ObjectID,
+      filterByUser: this.timesheetUser._ref,
       settings: settings
     });
   },
@@ -752,8 +756,8 @@ Ext.define('CA.techservices.TimeTable', {
     settings[key] = Ext.JSON.encode(value);
 
     Rally.data.PreferenceManager.update({
-      user: Rally.getApp().getContext().getUser().ObjectID,
-      filterByUser: true,
+      user: this.timesheetUser.ObjectID,
+      filterByUser: this.timesheetUser._ref,
       settings: settings
     });
   },
@@ -769,6 +773,10 @@ Ext.define('CA.techservices.TimeTable', {
     let currentDayPlusPadding = Rally.util.DateTime.add(moment_utc_days_later.toDate(), 'hour', 12);
     let header_text = Ext.String.format('{0}<br/>{1}', CA.techservices.timesheet.TimeRowUtils.dayShortNames[day], moment_utc_days_later.format('D MMM'));
 
+    const shouldDisableCell = (release) => {
+      return release && release.ReleaseDate && new Date(release.ReleaseDate) < currentDayPlusPadding && !Rally.getApp().isTimeSheetAdmin();
+    };
+
     let editor_config = function (record) {
       const release = (record.get && record.get('Release')) || record.Release;
       let minValue = 0;
@@ -776,7 +784,7 @@ Ext.define('CA.techservices.TimeTable', {
         field: Ext.create('Rally.ui.NumberField', {
           minValue,
           maxValue: 36,
-          disabled: !me.editable || (release && release.ReleaseDate && new Date(release.ReleaseDate) < currentDayPlusPadding && !Rally.getApp().isTimeSheetAdmin()),
+          disabled: !me.editable || shouldDisableCell(release),
           selectOnFocus: true
         }),
         listeners: {
@@ -804,10 +812,10 @@ Ext.define('CA.techservices.TimeTable', {
       summaryType: 'sum',
       renderer: function (value, meta, record) {
         const release = (record.get && record.get('Release')) || record.Release;
-        const shouldDisable = release && release.ReleaseDate && new Date(release.ReleaseDate) < currentDayPlusPadding && !Rally.getApp().isTimeSheetAdmin();
 
-        if (shouldDisable) {
+        if (shouldDisableCell(release)) {
           meta.tdCls = 'ts-disabled-cell';
+          me.hasItemsInPastReleases = true;
         }
 
         if (value === 0) {
@@ -825,8 +833,16 @@ Ext.define('CA.techservices.TimeTable', {
 
     //Highlight today
     if (day === weekdays[indexToday] && this.startDate < today && today < end_date) {
-      config.renderer = function (value, meta) {
-        meta.tdCls = 'ts-total-cell';
+      config.renderer = function (value, meta, record) {
+        const release = (record.get && record.get('Release')) || record.Release;
+
+        if (shouldDisableCell(release)) {
+          meta.tdCls = 'ts-disabled-cell';
+          me.hasItemsInPastReleases = true;
+        } else {
+          meta.tdCls = 'ts-total-cell';
+        }
+
         if (value === 0) {
           return '';
         }
@@ -835,8 +851,16 @@ Ext.define('CA.techservices.TimeTable', {
     }
 
     if (day === 'Saturday' || day === 'Sunday') {
-      config.renderer = function (value, meta) {
-        meta.tdCls = 'ts-weekend-cell';
+      config.renderer = function (value, meta, record) {
+        const release = (record.get && record.get('Release')) || record.Release;
+
+        if (shouldDisableCell(release)) {
+          meta.tdCls = 'ts-disabled-cell';
+          me.hasItemsInPastReleases = true;
+        } else {
+          meta.tdCls = 'ts-weekend-cell';
+        }
+
         if (value === 0) {
           return '';
         }
@@ -948,10 +972,7 @@ Ext.define('CA.techservices.TimeTable', {
       WorkProduct: {
         _ref: item.get('_ref')
       },
-      WeekStartDate: sunday_start,
-      User: {
-        _ref: '/usr/' + this.timesheetUser.ObjectID
-      }
+      WeekStartDate: sunday_start
     };
 
     if (item.get('Project')) {
@@ -988,6 +1009,7 @@ Ext.define('CA.techservices.TimeTable', {
             me.grid.getStore().loadRecords([row], { addRecords: true });
             me.rows.push(row);
             me.grid.refresh();
+            me.addWarningIfPreviousWorkExists(me);
           }
         });
       }
@@ -1094,5 +1116,23 @@ Ext.define('CA.techservices.TimeTable', {
     };
 
     return TSUtilities.loadWsapiRecords(config);
+  },
+
+  addWarningIfPreviousWorkExists(table) {
+    if (table.hasItemsInPastReleases && table.editable) {
+      const app = Rally.getApp();
+      const messageContainer = app.down('#messageContainer');
+      const supportEmail = app.getSetting('timesheetSupportEmail');
+
+      if (messageContainer) {
+        let msg = 'One or more rows contains work assigned to a past release and cannot be edited past its release date';
+
+        if (supportEmail) {
+          msg += `. For timesheet adjustments, please contact ${supportEmail}`;
+        }
+
+        messageContainer.update({ msg });
+      }
+    }
   }
 });

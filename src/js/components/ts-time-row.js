@@ -188,7 +188,7 @@ Ext.define('CA.techservices.timesheet.TimeRowUtils', {
             let pref = Ext.create(model, {
               Name: key,
               Value: '{}',
-              User: Rally.getApp().getContext().getUser()._ref,
+              User: Rally.getApp().getCurrentUser()._ref,
               Project: null
             });
 

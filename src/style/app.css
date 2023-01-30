@@ -16,7 +16,15 @@
     background-color: white !important ;
 }
 
-td.ts-total-cell, td.ts-disabled-cell {
+.x-grid-row-focused .x-grid-td {
+    background-color: #e9fbff;
+}
+
+td.ts-total-cell {
+    background-color: #f9f9f9 !important;
+}
+
+td.ts-disabled-cell {
     background-color: #eee !important;
 }
 

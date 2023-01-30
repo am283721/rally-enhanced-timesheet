@@ -56,9 +56,11 @@ Ext.define('TSTimesheet', {
         width: 275,
         itemId: 'userCombo',
         id: 'userCombo',
+        allowClear: true,
+        allowNoEntry: false,
         margin: '0 10 0 10',
         listeners: {
-          change() {
+          select() {
             this.updateData();
           },
           scope: this
@@ -191,10 +193,11 @@ Ext.define('TSTimesheet', {
     }
 
     this.setLoading('Finding my current stories...');
+    const currentUser = this.getCurrentUser();
 
     let my_filters = Rally.data.wsapi.Filter.or([
-      { property: 'Owner.ObjectID', value: this.getContext().getUser().ObjectID },
-      { property: 'Tasks.Owner.ObjectID', value: this.getContext().getUser().ObjectID }
+      { property: 'Owner.ObjectID', value: currentUser.ObjectID },
+      { property: 'Tasks.Owner.ObjectID', value: currentUser.ObjectID }
     ]);
 
     let current_filters = Rally.data.wsapi.Filter.and([
@@ -290,11 +293,7 @@ Ext.define('TSTimesheet', {
               me.setLoading(false);
             } else {
               Ext.Array.each(items, function (task) {
-                if (me.recordIsInPastRelease(task) && !me.isTimeSheetAdmin()) {
-                  me.showError(`${task.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
-                } else {
-                  timetable.addRowForItem(task);
-                }
+                timetable.addRowForItem(task);
               });
             }
 
@@ -331,7 +330,7 @@ Ext.define('TSTimesheet', {
       },
       fetch: ['ObjectID', 'Name', 'FormattedID', 'WorkProduct', 'Project'],
       filters: [
-        { property: 'Owner.ObjectID', value: this.getContext().getUser().ObjectID },
+        { property: 'Owner.ObjectID', value: this.getCurrentUser().ObjectID },
         { property: 'Iteration.StartDate', operator: '<=', value: Rally.util.DateTime.toIsoString(this.startDate) },
         { property: 'Iteration.EndDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) },
         { property: 'Release.ReleaseDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) },
@@ -371,14 +370,6 @@ Ext.define('TSTimesheet', {
     let filters = [{ property: 'State', operator: '!=', value: 'Completed' }];
     let fetch_fields = ['WorkProduct', 'Feature', 'Release', 'ReleaseDate', 'Project', 'Name', 'FormattedID', 'ObjectID'];
     let title = 'Choose Task(s)';
-
-    if (!this.isTimeSheetAdmin()) {
-      let releaseFilter = Ext.create('Rally.data.QueryFilter', { property: 'Release.ReleaseDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) });
-      releaseFilter = releaseFilter.or({ property: 'Release', value: null });
-      filters.push(releaseFilter);
-
-      title += ' - Tasks in past Releases will not be shown';
-    }
 
     if (timetable) {
       Ext.create('Rally.technicalservices.ChooserDialog', {
@@ -446,11 +437,7 @@ Ext.define('TSTimesheet', {
               Ext.Msg.alert('Problem Adding Tasks', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
             } else {
               Ext.Array.each(selectedRecords, function (selectedRecord) {
-                if (me.recordIsInPastRelease(selectedRecord) && !me.isTimeSheetAdmin()) {
-                  me.showError(`${selectedRecord.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
-                } else {
-                  timetable.addRowForItem(selectedRecord);
-                }
+                timetable.addRowForItem(selectedRecord);
               });
             }
           },
@@ -468,14 +455,6 @@ Ext.define('TSTimesheet', {
     filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'Defined' });
     filters = filters.or({ property: 'ScheduleState', operator: '=', value: 'In-Progress' });
     filters = filters.and({ property: 'DirectChildrenCount', operator: '=', value: 0 });
-
-    if (!this.isTimeSheetAdmin()) {
-      let releaseFilter = Ext.create('Rally.data.QueryFilter', { property: 'Release.ReleaseDate', operator: '>=', value: Rally.util.DateTime.toIsoString(this.startDate) });
-      releaseFilter = releaseFilter.or({ property: 'Release', value: null });
-      filters = filters.and(releaseFilter);
-
-      title += ' - Stories in past Releases will not be shown';
-    }
 
     if (timetable) {
       Ext.create('Rally.technicalservices.ChooserDialog', {
@@ -533,11 +512,7 @@ Ext.define('TSTimesheet', {
               Ext.Msg.alert('Problem Adding Stories', 'Cannot add items to grid. Limit is ' + me.getSetting('maxRows') + ' lines in the time sheet.');
             } else {
               Ext.Array.each(selectedRecords, function (selectedRecord) {
-                if (me.recordIsInPastRelease(selectedRecord) && !me.isTimeSheetAdmin()) {
-                  me.showError(`${selectedRecord.get('FormattedID')} is in a past Release. Time cannot be charged against it`);
-                } else {
-                  timetable.addRowForItem(selectedRecord);
-                }
+                timetable.addRowForItem(selectedRecord);
               });
             }
           },
@@ -548,29 +523,27 @@ Ext.define('TSTimesheet', {
   },
 
   updateData: function () {
-    let timesheetUser;
+    if (!this.down('#date_selector')) {
+      return;
+    }
+
+    let timesheetUser = this.getCurrentUser();
     let timetable = this.down('tstimetable');
-    let selectedUser = this.down('#userCombo') && this.down('#userCombo').getRecord();
     this.startDate = this.down('#date_selector').getValue();
     const isPastTimeSheet = new Date() > Rally.util.DateTime.add(this.startDate, 'week', 1);
     const editable = !isPastTimeSheet || this.isTimeSheetAdmin();
+    const isAdminUpdatingOtherUser = this.isTimeSheetAdmin() && timesheetUser && timesheetUser._ref !== this.getContext().getUser()._ref;
     const messageContainer = this.down('#messageContainer');
 
     if (!Ext.isEmpty(timetable)) {
       timetable.destroy();
     }
 
-    if (selectedUser && selectedUser.get('ObjectID')) {
-      timesheetUser = selectedUser.getData();
-    } else {
-      timesheetUser = this.getContext().getUser();
-    }
-
     if (messageContainer) {
       if (editable) {
         messageContainer.update({ msg: '' });
       } else {
-        let msg = 'The selected timesheet is in the past and cannot be edited';
+        let msg = 'The selected timesheet is in the past and hours cannot be updated';
 
         if (this.getSetting('timesheetSupportEmail')) {
           msg += `. For timesheet adjustments, please contact ${this.getSetting('timesheetSupportEmail')}`;
@@ -580,10 +553,10 @@ Ext.define('TSTimesheet', {
       }
     }
 
-    if (editable) {
-      this.down('#add_button_box').show();
-    } else {
+    if (isAdminUpdatingOtherUser) {
       this.down('#add_button_box').hide();
+    } else {
+      this.down('#add_button_box').show();
     }
 
     this.time_table = this.add({
@@ -616,10 +589,6 @@ Ext.define('TSTimesheet', {
 
   isTimeSheetAdmin() {
     return this.currentUserTimeSheetAdmin;
-  },
-
-  recordIsInPastRelease(story) {
-    return story.get('Release') && new Date(story.get('Release').ReleaseDate) < this.startDate;
   },
 
   getSettingsFields: function () {
@@ -688,6 +657,16 @@ Ext.define('TSTimesheet', {
     ];
   },
 
+  getCurrentUser() {
+    let selectedUser = this.down('#userCombo') && this.down('#userCombo').getRecord();
+
+    if (selectedUser && selectedUser.get('ObjectID')) {
+      return selectedUser.getData();
+    }
+
+    return this.getContext().getUser();
+  },
+
   getState: function () {
     return {
       pickableColumns: this.pickableColumns,
@@ -705,6 +684,7 @@ Ext.define('TSTimesheet', {
   },
 
   showError(msg, defaultMessage) {
+    console.error(msg);
     Rally.ui.notify.Notifier.showError({ message: this.parseError(msg, defaultMessage) });
   },
 
