@@ -11,3 +11,4 @@ deploy/app.min.js
 deploy/ConfluenceApp.txt
 deploy/ExternalApp.txt
 .env
+.DS_Store

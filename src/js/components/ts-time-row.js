@@ -568,12 +568,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     let promises = [];
 
     Ext.Object.each(changes, function (field, value) {
-      let value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(me.get('WeekStartDate'), me.get('WeekStart'), field);
-
       if (Ext.Array.contains(CA.techservices.timesheet.TimeRowUtils.daysInOrder, field)) {
-        if (me._dateIsPrecedingMonth(value_date) || (me._dateIsPrecedingWeek(value_date) && !Rally.getApp().isTimeSheetAdmin())) {
-          me._showClosedNotification();
-        }
         promises.push(function () {
           return me._changeDayValue(field, value);
         });

@@ -2,8 +2,8 @@
 <html>
 <head>
     <title>Rally Enhanced Timesheet</title>
-    <!--  Build Date: Mon Jan 30 2023 09:38:50 GMT-0500 (Eastern Standard Time) -->
-    <!--  Version: "0.2.1"-->
+    <!--  Build Date: Wed Feb 08 2023 10:06:22 GMT+0100 (Central European Standard Time) -->
+    <!--  Version: "0.2.2"-->
     <!--  Repository: "https:/github.com/am283721/rally-enhanced-timesheet"-->
     <script type="text/javascript" src="/apps/2.1/sdk-debug.js"></script>
 
@@ -2284,12 +2284,7 @@ Ext.define('CA.techservices.timesheet.TimeRow', {
     let promises = [];
 
     Ext.Object.each(changes, function (field, value) {
-      let value_date = CA.techservices.timesheet.TimeRowUtils.getValueFromDayOfWeek(me.get('WeekStartDate'), me.get('WeekStart'), field);
-
       if (Ext.Array.contains(CA.techservices.timesheet.TimeRowUtils.daysInOrder, field)) {
-        if (me._dateIsPrecedingMonth(value_date) || (me._dateIsPrecedingWeek(value_date) && !Rally.getApp().isTimeSheetAdmin())) {
-          me._showClosedNotification();
-        }
         promises.push(function () {
           return me._changeDayValue(field, value);
         });
@@ -4685,7 +4680,7 @@ Ext.define('CA.techservices.TimeTable', {
             Rally.launchApp('TSTimesheet', {
                 name:"Rally Enhanced Timesheet",
                 parentRepos:"",
-                version:"0.2.1"
+                version:"0.2.2"
             });
 
         });
