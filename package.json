@@ -1,7 +1,7 @@
 {
   "name": "rally-enhanced-timesheet",
-  "version": "0.2.2",
-  "repository": "https://github.com/am283721/rally-enhanced-timesheet",
+  "version": "0.3.1",
+  "repository": "",
   "scripts": {
     "build": "rab-ca build",
     "run": "rab-ca run"

@@ -41,7 +41,7 @@ Ext.define('CA.techservices.TimeTable', {
     pinKey: 'CA.techservices.timesheet.pin',
     showEditTimeDetailsMenuItem: false,
     pickableColumns: null,
-    maxRows: null,
+    maxRows: 500,
     /* String -- put in the lowest level PI Name (field name on a story) so we can trace up to a PI */
     lowestLevelPIName: null
   },
@@ -94,8 +94,6 @@ Ext.define('CA.techservices.TimeTable', {
 
   _updateData: function () {
     this.setLoading('Loading time...');
-    let me = this;
-    me.maxRows = 48;
 
     Deft.Chain.sequence([this._loadTimeEntryItems, this._loadTimeEntryValues, this._loadTimeDetailPreferences, this._loadDefaultSettings], this).then({
       scope: this,

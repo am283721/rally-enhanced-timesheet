@@ -21,7 +21,8 @@ Ext.define('TSTimesheet', {
       showAddMyStoriesButton: false,
       showEditTimeDetailsMenuItem: false,
       showTaskStateFilter: false,
-      timesheetSupportEmail: ''
+      timesheetSupportEmail: '',
+      maxRows: 500
     }
   },
 
@@ -376,7 +377,7 @@ Ext.define('TSTimesheet', {
         artifactTypes: ['task'],
         autoShow: true,
         multiple: true,
-        width: 1500,
+        width: '98%',
         title,
         context: {
           project: null
@@ -462,7 +463,7 @@ Ext.define('TSTimesheet', {
         autoShow: true,
         title,
         multiple: true,
-        width: 1500,
+        width: '98%',
         storeConfig: {
           filters: filters
         },
@@ -530,8 +531,7 @@ Ext.define('TSTimesheet', {
     let timesheetUser = this.getCurrentUser();
     let timetable = this.down('tstimetable');
     this.startDate = this.down('#date_selector').getValue();
-    const isPastTimeSheet = new Date() > Rally.util.DateTime.add(this.startDate, 'week', 1);
-    const editable = !isPastTimeSheet || this.isTimeSheetAdmin();
+    const editable = this.isTimeSheetEditable();
     const isAdminUpdatingOtherUser = this.isTimeSheetAdmin() && timesheetUser && timesheetUser._ref !== this.getContext().getUser()._ref;
     const messageContainer = this.down('#messageContainer');
 
@@ -591,6 +591,20 @@ Ext.define('TSTimesheet', {
     return this.currentUserTimeSheetAdmin;
   },
 
+  /*
+    We need the last two full weeks of timesheets to be editable. So we go back to the beginning of this week and then subtract
+    15 days (the extra day helps us account for current time of day plus any timezone discrepancies)
+  */
+  isTimeSheetEditable() {
+    if (this.isTimeSheetAdmin()) {
+      return true;
+    }
+
+    const week_starts_on = this.getSetting('weekStartsOn');
+    const startOfEditableWeek = Rally.util.DateTime.add(TSDateUtils.getBeginningOfWeekForLocalDate(new Date(), week_starts_on), 'day', -15);
+    return this.down('#date_selector').getValue() >= startOfEditableWeek;
+  },
+
   getSettingsFields: function () {
     let check_box_margins = '5 0 5 0';
     const config = { labelWidth: 175, width: 350 };
@@ -629,7 +643,7 @@ Ext.define('TSTimesheet', {
         maxValue: 1000,
         minValue: 10,
         fieldLabel: 'Maximum number of rows',
-        value: this.getSetting('maxRows') || 100
+        value: this.getSetting('maxRows') || 500
       },
       {
         ...config,
